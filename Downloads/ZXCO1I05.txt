@@ -1,0 +1,33 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZXCO1I05.
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Module  CHECK_COI_9002  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE check_coi_9002 INPUT.
+
+  DATA: lv_zzzzcoi_checksum_ok TYPE xfeld.
+
+  " Only if something changed
+  IF ci_aufk-zzcoi <> gv_zzzzcoi_prev_coi AND ci_aufk-zzcoi <> space.
+
+    IF sy-binpt = space.
+      CALL METHOD zcl_mm_coi_utility=>popup_check_coi_checksum
+        EXPORTING
+          iv_coi = ci_aufk-zzcoi
+        IMPORTING
+          ev_ok  = lv_zzzzcoi_checksum_ok.
+    ELSE.
+      lv_zzzzcoi_checksum_ok = abap_true.
+    ENDIF.
+
+    IF lv_zzzzcoi_checksum_ok <> abap_true.
+      CLEAR ci_aufk-zzcoi.
+    ENDIF.
+
+    gv_zzzzcoi_prev_coi = ci_aufk-zzcoi.
+  ENDIF.
+
+ENDMODULE.

@@ -1,0 +1,9 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZXCO1TOP
+*&---------------------------------------------------------------------*
+DATA :zcaufvd TYPE caufvd.
+TABLES:ci_aufk.
+DATA: gv_screen TYPE scradnum VALUE '9001'.
+DATA: gv_plant  TYPE char50 VALUE '(SAPLCOKO)CAUFVD-WERKS'.
+DATA: gv_zzzzcoi_prev_coi TYPE zpp_coi.
+FIELD-SYMBOLS: <gf_plant> TYPE any.

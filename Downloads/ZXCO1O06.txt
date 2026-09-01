@@ -1,0 +1,57 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZXCO1O06.
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Module  MODIFY_SCREEN_9002  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE modify_screen_9002 OUTPUT.
+
+  DATA lv_zzzzcoi_ordertype TYPE char50 VALUE '(SAPLCOKO)CAUFVD-AUART'.
+  DATA lv_zzzzcoi_material TYPE char50 VALUE '(SAPLCOKO)CAUFVD-PLNBEZ'.
+  DATA lv_zzzzcoi_plant TYPE char50 VALUE '(SAPLCOKO)CAUFVD-WERKS'.
+  DATA lv_zzzzcoi_tran_type TYPE char50 VALUE '(SAPLCOKO)TC10-TRTYP'.
+  DATA: ls_zzzzcoi_caufvdb TYPE caufvdb.
+  DATA: lv_zzzzcoi_needed TYPE xfeld.
+
+  CONSTANTS: lc_zzzzcoi_display TYPE c VALUE 'A'.
+
+  ASSIGN: (lv_zzzzcoi_ordertype) TO FIELD-SYMBOL(<fs_zzzzcoi_ordertype>),
+          (lv_zzzzcoi_material) TO FIELD-SYMBOL(<fs_zzzzcoi_material>),
+          (lv_zzzzcoi_plant) TO FIELD-SYMBOL(<fs_zzzzcoi_plant>),
+          (lv_zzzzcoi_tran_type) TO FIELD-SYMBOL(<fs_zzzzcoi_ttyp>).
+
+  IF <fs_zzzzcoi_ordertype> IS ASSIGNED AND
+    <fs_zzzzcoi_material> IS ASSIGNED AND
+    <fs_zzzzcoi_plant> IS ASSIGNED.
+    CLEAR ls_zzzzcoi_caufvdb.
+    ls_zzzzcoi_caufvdb-auart = <fs_zzzzcoi_ordertype>.
+    ls_zzzzcoi_caufvdb-plnbez = <fs_zzzzcoi_material>.
+    ls_zzzzcoi_caufvdb-werks = <fs_zzzzcoi_plant>.
+    CALL METHOD zcl_mm_coi_utility=>check_coi_needed_po
+      EXPORTING
+        is_caufvdb = ls_zzzzcoi_caufvdb
+      IMPORTING
+        ev_needed  = lv_zzzzcoi_needed.
+  ELSE.
+    lv_zzzzcoi_needed = abap_false.
+  ENDIF.
+
+  IF lv_zzzzcoi_needed = abap_false.
+    LOOP AT SCREEN.
+      screen-active = 0.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ELSE.
+    LOOP AT SCREEN.
+      IF <fs_ttyp> IS ASSIGNED AND <fs_ttyp> = lc_zzzzcoi_display ."sy-tcode EQ 'COR3'.
+        IF screen-group1 = 'COII'.
+          screen-input = '0'.
+        ENDIF.
+      ENDIF.
+      MODIFY SCREEN.
+    ENDLOOP.
+  ENDIF.
+
+ENDMODULE.

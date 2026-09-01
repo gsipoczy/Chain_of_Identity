@@ -1,0 +1,84 @@
+class ZCL_IM_C_COI_INDEX definition
+  public
+  final
+  create public .
+
+public section.
+
+  interfaces IF_BADI_INTERFACE .
+  interfaces IF_EX_MB_DOCUMENT_BADI .
+protected section.
+private section.
+ENDCLASS.
+
+
+
+CLASS ZCL_IM_C_COI_INDEX IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_IM_C_COI_INDEX->IF_EX_MB_DOCUMENT_BADI~MB_DOCUMENT_BEFORE_UPDATE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] XMKPF                          TYPE        TY_T_MKPF
+* | [--->] XMSEG                          TYPE        TY_T_MSEG
+* | [--->] XVM07M                         TYPE        TY_T_VM07M
+* | [--->] XDM07M                         TYPE        TY_T_DM07M(optional)
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method IF_EX_MB_DOCUMENT_BADI~MB_DOCUMENT_BEFORE_UPDATE.
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_IM_C_COI_INDEX->IF_EX_MB_DOCUMENT_BADI~MB_DOCUMENT_UPDATE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] XMKPF                          TYPE        TY_T_MKPF
+* | [--->] XMSEG                          TYPE        TY_T_MSEG
+* | [--->] XVM07M                         TYPE        TY_T_VM07M
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD if_ex_mb_document_badi~mb_document_update.
+
+    DATA: lv_coi   TYPE zpp_coi,
+          ls_index TYPE zpp_coi_index.
+
+    FIELD-SYMBOLS: <lfs_mkpf> TYPE mkpf,
+                   <lfs_mseg> TYPE mseg.
+
+    " We need to create a COI index entry for
+    " every item which has a batch with COI ID.
+    LOOP AT xmkpf ASSIGNING <lfs_mkpf>.
+      LOOP AT xmseg ASSIGNING <lfs_mseg>
+        WHERE mblnr = <lfs_mkpf>-mblnr
+          AND mjahr = <lfs_mkpf>-mjahr
+          AND matnr <> space
+          AND charg <> space.
+
+        CALL METHOD zcl_mm_coi_utility=>get_batch_information
+          EXPORTING
+            iv_matnr = <lfs_mseg>-matnr
+            iv_charg = <lfs_mseg>-charg
+          IMPORTING
+            ev_coi   = lv_coi.
+        IF lv_coi IS INITIAL.
+          CONTINUE.
+        ENDIF.
+
+        CLEAR ls_index.
+        MOVE-CORRESPONDING <lfs_mkpf> TO ls_index.
+        MOVE-CORRESPONDING <lfs_mseg> TO ls_index.
+        ls_index-mandt = sy-mandt.
+        ls_index-coi = lv_coi.
+
+        CALL METHOD zcl_pp_coi_index=>save_index_wrapper
+          EXPORTING
+            is_index = ls_index.
+*            iv_delold_process_order = ' '
+*            iv_delold_sales_order   = ' '
+*            iv_delold_batch         = ' '
+*            iv_commit               = ' '
+*            iv_background           = ' '
+
+      ENDLOOP.
+    ENDLOOP.
+
+  ENDMETHOD.
+ENDCLASS.

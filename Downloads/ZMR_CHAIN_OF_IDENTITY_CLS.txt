@@ -1,0 +1,36 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMR_CHAIN_OF_IDENTITY_CLS
+*&---------------------------------------------------------------------*
+CLASS lcl_events DEFINITION.
+  PUBLIC SECTION.
+    METHODS:
+      hotspot_click FOR EVENT hotspot_click OF cl_gui_alv_grid
+        IMPORTING e_row_id e_column_id es_row_no,
+
+      data_changed FOR EVENT data_changed OF cl_gui_alv_grid
+        IMPORTING er_data_changed e_onf4 e_onf4_before e_onf4_after e_ucomm,
+
+      before_user_command FOR EVENT before_user_command OF cl_gui_alv_grid
+        IMPORTING e_ucomm,
+
+      user_command FOR EVENT user_command OF cl_gui_alv_grid
+        IMPORTING e_ucomm,
+
+      after_user_command FOR EVENT after_user_command OF cl_gui_alv_grid
+        IMPORTING e_ucomm e_saved e_not_processed,
+
+      menu_button FOR EVENT menu_button OF cl_gui_alv_grid
+        IMPORTING e_object e_ucomm,
+
+      toolbar FOR EVENT toolbar OF cl_gui_alv_grid
+        IMPORTING e_object e_interactive,
+
+      after_refresh FOR EVENT after_refresh OF cl_gui_alv_grid,
+
+      button_click FOR EVENT button_click OF cl_gui_alv_grid
+        IMPORTING es_col_id es_row_no,
+
+      data_changed_finished FOR EVENT data_changed_finished OF cl_gui_alv_grid
+        IMPORTING e_modified et_good_cells.
+
+ENDCLASS.

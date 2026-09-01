@@ -1,0 +1,19 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMR_CHAIN_OF_IDENTITY_SEL
+*&---------------------------------------------------------------------*
+SELECTION-SCREEN: BEGIN OF BLOCK bl1 WITH FRAME TITLE text-bl1.
+SELECT-OPTIONS: s_coi FOR aufk-zzcoi NO INTERVALS,
+                s_werks FOR aufk-werks OBLIGATORY,
+                s_matnr FOR mara-matnr,
+                s_charg FOR mch1-charg,
+                s_pruef FOR qals-prueflos,
+                s_ebeln FOR ekko-ebeln,
+                s_aufnr FOR aufk-aufnr,
+                s_vbeln FOR vbak-vbeln,
+                s_vbell FOR likp-vbeln,
+                s_kunag FOR vbak-kunnr NO-EXTENSION NO INTERVALS,
+                s_kunwe FOR likp-kunnr NO-EXTENSION NO INTERVALS,
+                s_mtarc FOR mara-mtart OBLIGATORY,
+                s_mtarf FOR mara-mtart OBLIGATORY.
+
+SELECTION-SCREEN: END OF BLOCK bl1.

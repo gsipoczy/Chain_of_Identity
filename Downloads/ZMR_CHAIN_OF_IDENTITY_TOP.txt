@@ -1,0 +1,131 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMR_CHAIN_OF_IDENTITY_TOP
+*&---------------------------------------------------------------------*
+  TABLES: ekko, mseg, vbak, aufk, mara, mch1, qals, likp.
+
+  TYPES: BEGIN OF ts_alv,
+           " Batch
+           coi      TYPE zpp_coi,
+           matnr    TYPE matnr,
+           charg    TYPE charg_d,
+           din      TYPE zpp_din,
+           " Batch stock
+           prlab    TYPE labst,
+           prins    TYPE insme,
+           prspe    TYPE speme,
+           prein    TYPE einme,
+           meins    TYPE meins,
+           " Purchase Order
+           ebeln    TYPE ebeln,
+           lifnr    TYPE elifn,
+           bldat    TYPE bldat,
+           " Inspection Lot
+           prueflos TYPE qplos,
+           " Process Order
+           aufnr    TYPE aufnr,
+           istat    TYPE text100,
+           estat    TYPE text100,
+           " Sales Order
+           vbeln    TYPE vbeln_va,
+           gbstk    TYPE gbstk,
+           " Delivery
+           vbell    TYPE vbeln_vl,
+           gbstl    TYPE gbstk,
+           lfdat    TYPE lfdat_v,
+           kunwe    TYPE kunwe,
+           kunag    TYPE kunag,
+         END OF ts_alv,
+         tt_alv TYPE TABLE OF ts_alv.
+
+  TYPES: BEGIN OF ts_mspr,
+           matnr TYPE matnr,
+           charg TYPE charg_d,
+           prlab TYPE labst,
+           prins TYPE insme,
+           prspe TYPE speme,
+           prein TYPE einme,
+           meins TYPE meins,
+         END OF ts_mspr,
+         tt_mspr TYPE SORTED TABLE OF ts_mspr
+                   WITH UNIQUE KEY matnr charg.
+
+  TYPES: tt_coi TYPE TABLE OF zpp_coi_index.
+
+  TYPES: BEGIN OF ts_batchinfo,
+           matnr TYPE matnr,
+           charg TYPE charg_d,
+           coi   TYPE zpp_coi,
+           din   TYPE zpp_din,
+         END OF ts_batchinfo.
+
+  TYPES: tt_batchinfo TYPE SORTED TABLE OF ts_batchinfo
+       WITH UNIQUE KEY matnr charg.
+
+  TYPES: BEGIN OF ts_aufk,
+           aufnr TYPE aufnr,
+         END OF ts_aufk,
+         BEGIN OF ts_vbak,
+           vbeln TYPE vbeln_va,
+         END OF ts_vbak,
+         tt_aufk TYPE TABLE OF ts_aufk,
+         tt_vbak TYPE TABLE OF ts_vbak.
+
+  TYPES: BEGIN OF ts_likp,
+           vbeln TYPE vbeln_vl,
+           lfdat TYPE lfdat_v,
+           kunnr TYPE kunwe,
+           kunag TYPE kunag,
+         END OF ts_likp,
+         tt_likp TYPE TABLE OF ts_likp.
+
+  CONSTANTS: gc_noexit                 TYPE convexit VALUE space,
+             gc_key                    TYPE lvc_key VALUE 'X',
+             gc_nokey                  TYPE lvc_key VALUE space,
+             gc_icon                   TYPE lvc_icon VALUE 'X',
+             gc_noicon                 TYPE lvc_icon VALUE space,
+             gc_hotspot                TYPE lvc_hotspt VALUE 'X',
+             gc_nohotspot              TYPE lvc_hotspt VALUE space,
+             gc_kappl                  TYPE sna_kappl VALUE 'V1',
+             gc_kschl                  TYPE sna_kschl VALUE 'ZT00',
+             gc_vstat                  TYPE na_vstat VALUE '1',
+             gc_parvw_customer_service TYPE parvw VALUE 'Z3',
+             gc_parvw_ship_to_party    TYPE parvw VALUE 'WE',
+             gc_lifsp                  TYPE lifsp_ep VALUE 'Y2'.
+
+  CONSTANTS: gc_icon_save         TYPE icon_d VALUE '@2L@',
+             gc_icon_select_all   TYPE icon_d VALUE '@4B@',
+             gc_icon_deselect_all TYPE icon_d VALUE '@4D@',
+             gc_icon_refresh      TYPE icon_d VALUE '@42@'.
+
+  CONSTANTS: gc_grpurord  TYPE char1 VALUE '1',
+             gc_giprocord TYPE char1 VALUE '2',
+             gc_grprocord TYPE char1 VALUE '3'.
+
+  CONSTANTS: gc_herkunft TYPE qherk VALUE '01',
+             gc_vbtyp_so TYPE vbtyp VALUE 'C',
+             gc_vbtyp_od TYPE vbtyp VALUE 'J'.
+
+  CONSTANTS: gc_rt_gr_purord  TYPE char1 VALUE '1',
+             gc_rt_gi_procord TYPE char1 VALUE '2',
+             gc_rt_gr_procord TYPE char1 VALUE '3',
+             gc_rt_procord    TYPE char1 VALUE '4',
+             gc_rt_salesord   TYPE char1 VALUE '5',
+             gc_rt_so_item    TYPE char1 VALUE '6'.
+
+
+  DATA: gt_alv       TYPE tt_alv,
+        gt_batchinfo TYPE tt_batchinfo,
+        gt_mspr      TYPE tt_mspr,
+        gt_coi       TYPE tt_coi.
+
+  DATA: gt_bwart_gr_purord  TYPE bwart_t_range,
+        gt_bwart_gi_procord TYPE bwart_t_range,
+        gt_bwart_gr_procord TYPE bwart_t_range.
+
+  DATA: go_cont1    TYPE REF TO cl_gui_custom_container,
+        go_alv1     TYPE REF TO cl_gui_alv_grid,
+        gs_layout   TYPE lvc_s_layo,
+        gt_fieldcat TYPE lvc_t_fcat,
+        gs_variant  TYPE disvariant.
+
+  DATA: gr_events TYPE REF TO lcl_events.

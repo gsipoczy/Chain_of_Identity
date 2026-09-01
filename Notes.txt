@@ -1,0 +1,113 @@
+3-WAY:
+before calling UEX:
+- if EBELN filled, AUFNR not filled:
+loop VALUES:
+ATNAM = CGT_3WAY
+
+If there, do not execute UEX at all.
+
+--------------------------------------------
+Delivery printout:
+Print program: ZOFW_V_DELIVERY
+
+[1]:
+Data structure: ZOFW_V_DELIVERY_ITEM add ZZCOI like in VBAK
+-> ZOFW_V_DELIVERY-ITEM_LINES (TT: ZOFW_V_DELIVERY_T_ITEM, structure ZOFW_V_DELIVERY_ITEM)
+
+[2]:
+Class ZCL_OFW_V_DELIVERY_DATA, method GET_DATA:
+Method: READ_ITEM_DATA
+
+LOOP AT lt_vbdpl INTO ls_vbdpl. -> ls_vbdpl-vbeln = delivery number
+In this loop get COI and put into ls_item-zzcoi (ls_item is the above type ZOFW_V_DELIVERY_ITEM)
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+CALL METHOD zcl_mm_coi_utility=>get_coi_for_delivery
+    EXPORTING
+      iv_vbeln = ls_vbdpl-vbeln
+    IMPORTING
+      ev_coi   = ls_item-zzcoi.
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+[3]:
+Smartform: ZOFW_V_DELIVERY_PKL_INTL
+
+MAIN Main Window
+   TABLE1 (here defined line type LTYPE5)
+      Main Area
+	ITEM_BATCH Item Batch
+		PACKAGES_BATCH
+			ROW9 (type LTYPE5)
+				CELL35
+					TEXT22 = Country of Origin:&LS_ITEM_LINES-HERKL_LANDX&
+-> Below this in the same cell as TEXTnnn
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+Condition: LS_ITEM_LINES-ZZCOI <> SPACE (see TEXT22)
+General attributes: COI:&LS_ITEM_LINES-ZZCOI&
+<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+[4]: remove codes from:
+Program ZVADDN01
+SAPScript ZVDELNOTE* !!!
+
+
+--------------------------------------------
+COR6:
+ZCL_IM_C_COI_COR6_PO_CHECK
+	IM_CALLED
+		I_IMSEG
+
+
+SAPLMIGO / LMIGOKB1 -> BATCH_DATA_GET: or BATCH_DATA_UPDATE (both stops here)
+CS_GOITEM-	BWART
+		MATNR
+		CHARG
+		AUFNR
+
+4184683
+22NL355057
+
+
+
+
+
+ZCL_IM_C_COI_INDEX
+	MB_DOCUMENT_UPDATE
+
+XMKPF[1]	-TCODE2 = COR6 / MIGO_GI
+		-TCODE = nothing
+XMSEG[1]	*-BWART = 261
+		*-MATNR = 000000000000703476
+		-WERKS = NL08
+		-LGORT = 0200
+		*-CHARG = 22NL355054
+		*-AUFNR = 000004184683
+XVM07M[1]	-ZEILV = XMSEG[1]-ZEILE
+		-MTART = CSTM
+		-OBJNR = OR000004184683
+
+
+
+
+
+
+
+
+
+
+
+
+
+POPUP_TO_DECIDE_INFO
+
+
+
+IV_USER_CANCEL
+IV_CONFIG_ERROR
+
+CS_BAPIRET2 BAPIRET2
+TYPE
+ID
+NUMBER
+MESSAGE

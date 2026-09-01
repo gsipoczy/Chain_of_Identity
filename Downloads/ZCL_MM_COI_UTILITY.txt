@@ -1,0 +1,839 @@
+class ZCL_MM_COI_UTILITY definition
+  public
+  final
+  create public .
+
+public section.
+
+  constants CLASS_TYPE_MATERIAL type KLASSENART value '001' ##NO_TEXT.
+  constants ATNAM_HAZARDOUS_CLASS type ATNAM value 'NL_HAZARDOUS_CLASS' ##NO_TEXT.
+  constants ZFS_FIXVAL_ATWRT_YES type ATWRT value 'YES' ##NO_TEXT.
+  constants ZFS_FIXVAL_ATWRT_NO type ATWRT value 'NO' ##NO_TEXT.
+  constants LOOKUP_NAME_ACTIVE_GR type ZLOOKUP_NAME value 'ZCOI_3WAYCHECK' ##NO_TEXT.
+  constants LOOKUP_NAME_ACTIVE_PO type ZLOOKUP_NAME value 'ZCOI_PRO' ##NO_TEXT.
+  constants ZFS_ATNAM_COI type ATNAM value 'TBD' ##NO_TEXT.
+  constants ZFS_ATNAM_DIN type ATNAM value 'TBD' ##NO_TEXT.
+  constants FREEKEY_PURCHASING_ORG type ZFREE_KEY value 'PORG' ##NO_TEXT.
+  constants FREEKEY_MATERIAL_TYPE type ZFREE_KEY value 'MATTYPE' ##NO_TEXT.
+  constants FREEKEY_HAZARDOUS_CLASS type ZFREE_KEY value 'ATWRT' ##NO_TEXT.
+  constants FREEKEY_PO_PLANT type ZFREE_KEY value 'WERKS_D' ##NO_TEXT.
+  constants FREEKEY_PO_TYPE type ZFREE_KEY value 'PI_AUFART' ##NO_TEXT.
+  constants RETURN_OK type CHAR1 value ' ' ##NO_TEXT.
+  constants RETURN_CANCEL type CHAR1 value 'A' ##NO_TEXT.
+  constants POPUP_INPUT_START_COLUMN type CHAR1 value '5' ##NO_TEXT.
+  constants POPUP_INPUT_START_ROW type CHAR1 value '5' ##NO_TEXT.
+  constants POPUP_MESSAGE_START_COLUMN type SYST_CUCOL value 25 ##NO_TEXT.
+  constants POPUP_MESSAGE_START_ROW type SYST_CUROW value 6 ##NO_TEXT.
+  constants POPUP_INPUT_FM type RS38L_FNAM value 'POPUP_GET_VALUES' ##NO_TEXT.
+  constants POPUP_MESSAGE_FM type RS38L_FNAM value '???' ##NO_TEXT.
+  constants ATNAM_3WAY_SUCCESS type ATNAM value '3-way successful' ##NO_TEXT.
+  constants ATWTB_YES type ATWTB value 'Yes' ##NO_TEXT.
+  constants ATWTB_NO type ATWTB value 'No' ##NO_TEXT.
+  constants BUTTON_TEXT_OK type CHAR10 value 'OK' ##NO_TEXT.
+  constants BUTTON_TEXT_CANCEL type CHAR10 value 'Cancel' ##NO_TEXT.
+  constants SCREEN_TABLE type TABNAME value 'ZBS_EXIT_CONTROL' ##NO_TEXT.
+  constants SCREENMESSAGE_FIELD type FIELDNAME value 'TEXT' ##NO_TEXT.
+  constants SCREENMESSAGE_LABEL type SCRTEXT_M value 'System message' ##NO_TEXT.
+  constants COI_OBTAB type TABELLE value 'MCH1' ##NO_TEXT.
+  constants COI_CLASS type KLASSE_D value 'PRODZUST' ##NO_TEXT.
+
+  class-methods FINAL_CHECK_INPUT
+    importing
+      !IT_CHECKVALS type ZMM_COI3WC_CONF_SCREEN_TT
+    exporting
+      !EV_SUCCESS type XFELD .
+  class-methods GET_MATERIAL_INFORMATION
+    importing
+      !IV_MATNR type MATNR
+    exporting
+      !EV_MTART type MTART
+      !EV_HAZARDOUS_CLASS type ATWRT .
+  class-methods READ_ZMM_PARAM
+    exporting
+      !ET_PARAM type ZMM_COI_ACTIVATION_PARAMS_TT .
+  class-methods CHECK_COI_NEEDED_GR
+    importing
+      !IS_MKPF type MKPF
+      !IS_MSEG type MSEG
+    exporting
+      !EV_NEEDED type XFELD .
+  class-methods PROCESS_SCREEN
+    importing
+      !IV_POPUP_TITLE type TEXT100
+    exporting
+      !EV_RETURNCODE type CHAR1
+    changing
+      !CT_FIELDS type ZMM_COI3WC_CONF_SCFIELD_TT .
+  class-methods POPUP_CONFIRMATION
+    importing
+      !IV_TITLE type TEXT100
+      !IV_TEXT type TEXT100
+      !IV_WITH_CANCEL type XFELD
+    exporting
+      !EV_OK type XFELD .
+  class-methods SAVE_BATCH_COI_LINK
+    importing
+      !IV_MATNR type MATNR
+      !IV_CHARG type CHARG_D
+      !IV_COI type ZM_COI_COI_FIELD
+      !IV_DIN type ZM_COI_DIN_FIELD
+      !IV_EBELN type BSTNR .
+  class-methods GET_ATINN
+    importing
+      !IV_ATNAM type ATNAM
+    exporting
+      !EV_ATINN type ATINN .
+  class-methods CHECK_COI_NEEDED_PO
+    importing
+      !IS_CAUFVDB type CAUFVDB
+    exporting
+      !EV_NEEDED type XFELD .
+  class-methods POPUP_CHECK_COI_CHECKSUM
+    importing
+      !IV_COI type ZPP_COI
+    exporting
+      !EV_OK type XFELD .
+protected section.
+private section.
+
+  class-methods CHECK_COI_NEEDED_GR_INT
+    importing
+      !IV_EKORG type EKORG
+      !IV_MTART type MTART
+      !IV_HAZARDOUS_CLASS type ATWRT
+      !IT_PARAM type ZMM_COI_ACTIVATION_PARAMS_TT
+    exporting
+      !EV_NEEDED type XFELD .
+  class-methods CONVERT_FIELDLIST_TO_SVALS
+    importing
+      !IT_FIELDLIST type ZMM_COI3WC_CONF_SCFIELD_TT
+      !IV_DISPLAY type XFELD
+      !IV_MESSAGE type TEXT50
+    exporting
+      !ET_SVALS type TY_SVAL .
+  class-methods CONVERT_SVALS_TO_FIELDLIST
+    importing
+      !IT_SVALS type TY_SVAL
+    changing
+      !CT_FIELDLIST type ZMM_COI3WC_CONF_SCFIELD_TT .
+ENDCLASS.
+
+
+
+CLASS ZCL_MM_COI_UTILITY IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI_UTILITY=>CHECK_COI_NEEDED_GR
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_MKPF                        TYPE        MKPF
+* | [--->] IS_MSEG                        TYPE        MSEG
+* | [<---] EV_NEEDED                      TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD CHECK_COI_NEEDED_GR.
+
+    DATA: lt_param           TYPE zmm_coi_activation_params_tt,
+          lv_ekorg           TYPE ekorg,
+          lv_mtart           TYPE mtart,
+          lv_hazardous_class TYPE atwrt.
+
+    " Get the necessary info
+    CALL METHOD read_zmm_param
+      IMPORTING
+        et_param = lt_param.
+    CALL METHOD get_material_information
+      EXPORTING
+        iv_matnr           = is_mseg-matnr
+      IMPORTING
+        ev_mtart           = lv_mtart
+        ev_hazardous_class = lv_hazardous_class.
+    SELECT SINGLE ekorg INTO lv_ekorg
+      FROM ekko
+      WHERE ebeln = is_mseg-ebeln.
+    IF sy-subrc <> 0.
+      CLEAR lv_ekorg.
+    ENDIF.
+
+    " Check necessity
+    CALL METHOD check_coi_needed_gr_int
+      EXPORTING
+        iv_ekorg           = lv_ekorg
+        iv_mtart           = lv_mtart
+        iv_hazardous_class = lv_hazardous_class
+        it_param           = lt_param
+      IMPORTING
+        ev_needed          = ev_needed.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Private Method ZCL_MM_COI_UTILITY=>CHECK_COI_NEEDED_GR_INT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_EKORG                       TYPE        EKORG
+* | [--->] IV_MTART                       TYPE        MTART
+* | [--->] IV_HAZARDOUS_CLASS             TYPE        ATWRT
+* | [--->] IT_PARAM                       TYPE        ZMM_COI_ACTIVATION_PARAMS_TT
+* | [<---] EV_NEEDED                      TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  method CHECK_COI_NEEDED_GR_INT.
+
+    FIELD-SYMBOLS: <lfs_param> TYPE zmm_coi_activation_params_st.
+
+    " Default: needed, but in any discrepancy we change it
+    ev_needed = abap_true.
+
+    " Purchasing organization
+    IF iv_ekorg <> space.
+      UNASSIGN <lfs_param>.
+      LOOP AT it_param ASSIGNING <lfs_param> WHERE lookup_name = lookup_name_active_gr
+                                               AND free_key = freekey_purchasing_org.
+        EXIT.
+      ENDLOOP.
+      IF sy-subrc = 0 AND <lfs_param> IS ASSIGNED.
+        IF NOT <lfs_param>-value1 CS iv_ekorg.
+          ev_needed = abap_false.
+        ENDIF.
+      ELSE.
+        ev_needed = abap_false.
+      ENDIF.
+    ELSE.
+      ev_needed = abap_false.
+    ENDIF.
+    CHECK ev_needed = abap_true.
+
+    " Material type
+    IF iv_mtart <> space.
+      UNASSIGN <lfs_param>.
+      LOOP AT it_param ASSIGNING <lfs_param> WHERE lookup_name = lookup_name_active_gr
+                                               AND free_key = freekey_material_type.
+        EXIT.
+      ENDLOOP.
+      IF sy-subrc = 0 AND <lfs_param> IS ASSIGNED.
+        IF NOT <lfs_param>-value1 CS iv_mtart.
+          ev_needed = abap_false.
+        ENDIF.
+      ELSE.
+        ev_needed = abap_false.
+      ENDIF.
+    ELSE.
+      ev_needed = abap_false.
+    ENDIF.
+    CHECK ev_needed = abap_true.
+
+    " Hazardous class
+    IF iv_hazardous_class <> space.
+      UNASSIGN <lfs_param>.
+      LOOP AT it_param ASSIGNING <lfs_param> WHERE lookup_name = lookup_name_active_gr
+                                               AND free_key = freekey_hazardous_class.
+        EXIT.
+      ENDLOOP.
+      IF sy-subrc = 0 AND <lfs_param> IS ASSIGNED.
+        IF NOT <lfs_param>-value1 CS iv_hazardous_class.
+          ev_needed = abap_false.
+        ENDIF.
+      ELSE.
+        ev_needed = abap_false.
+      ENDIF.
+    ELSE.
+      ev_needed = abap_false.
+    ENDIF.
+
+  endmethod.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI_UTILITY=>CHECK_COI_NEEDED_PO
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_CAUFVDB                     TYPE        CAUFVDB
+* | [<---] EV_NEEDED                      TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD check_coi_needed_po.
+
+    DATA: lt_param           TYPE zmm_coi_activation_params_tt,
+          lv_mtart           TYPE mtart,
+          lv_hazardous_class TYPE atwrt.
+
+    FIELD-SYMBOLS: <lfs_param> TYPE zmm_coi_activation_params_st.
+
+    " Default: needed, but in any discrepancy we change it
+    ev_needed = abap_true.
+
+    " Get the necessary info
+    CALL METHOD read_zmm_param
+      IMPORTING
+        et_param = lt_param.
+    CALL METHOD get_material_information
+      EXPORTING
+        iv_matnr           = is_caufvdb-plnbez
+      IMPORTING
+        ev_mtart           = lv_mtart
+        ev_hazardous_class = lv_hazardous_class.
+
+    " Hazardous class
+    IF lv_hazardous_class <> space.
+      UNASSIGN <lfs_param>.
+      LOOP AT lt_param ASSIGNING <lfs_param> WHERE lookup_name = lookup_name_active_gr
+                                               AND free_key = freekey_hazardous_class.
+        EXIT.
+      ENDLOOP.
+      IF sy-subrc = 0 AND <lfs_param> IS ASSIGNED.
+        IF NOT <lfs_param>-value1 CS lv_hazardous_class.
+          ev_needed = abap_false.
+        ENDIF.
+      ELSE.
+        ev_needed = abap_false.
+      ENDIF.
+    ELSE.
+      ev_needed = abap_false.
+    ENDIF.
+    CHECK ev_needed = abap_true.
+
+    " Process order type
+    IF is_caufvdb-auart <> space.
+      UNASSIGN <lfs_param>.
+      LOOP AT lt_param ASSIGNING <lfs_param> WHERE lookup_name = lookup_name_active_po
+                                               AND free_key = freekey_po_type.
+        EXIT.
+      ENDLOOP.
+      IF sy-subrc = 0 AND <lfs_param> IS ASSIGNED.
+        IF NOT <lfs_param>-value1 CS is_caufvdb-auart.
+          ev_needed = abap_false.
+        ENDIF.
+      ELSE.
+        ev_needed = abap_false.
+      ENDIF.
+    ELSE.
+      ev_needed = abap_false.
+    ENDIF.
+    CHECK ev_needed = abap_true.
+
+    " Plant
+    IF is_caufvdb-werks <> space.
+      UNASSIGN <lfs_param>.
+      LOOP AT lt_param ASSIGNING <lfs_param> WHERE lookup_name = lookup_name_active_po
+                                               AND free_key = freekey_po_plant.
+        EXIT.
+      ENDLOOP.
+      IF sy-subrc = 0 AND <lfs_param> IS ASSIGNED.
+        IF NOT <lfs_param>-value1 CS is_caufvdb-werks.
+          ev_needed = abap_false.
+        ENDIF.
+      ELSE.
+        ev_needed = abap_false.
+      ENDIF.
+    ELSE.
+      ev_needed = abap_false.
+    ENDIF.
+    CHECK ev_needed = abap_true.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Private Method ZCL_MM_COI_UTILITY=>CONVERT_FIELDLIST_TO_SVALS
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_FIELDLIST                   TYPE        ZMM_COI3WC_CONF_SCFIELD_TT
+* | [--->] IV_DISPLAY                     TYPE        XFELD
+* | [--->] IV_MESSAGE                     TYPE        TEXT50
+* | [<---] ET_SVALS                       TYPE        TY_SVAL
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD CONVERT_FIELDLIST_TO_SVALS.
+
+    FIELD-SYMBOLS: <lfs_fl> TYPE zmm_coi3wc_conf_scfield_st.
+    DATA: ls_sval TYPE sval.
+
+    CLEAR et_svals.
+
+    IF iv_message <> space.
+      CLEAR ls_sval.
+      ls_sval-tabname = screen_table.
+      ls_sval-fieldname = screenmessage_field.
+      ls_sval-fieldtext = screenmessage_label.
+      ls_sval-field_attr = '02'.
+      ls_sval-value = iv_message.
+      APPEND ls_sval TO et_svals.
+    ENDIF.
+
+    LOOP AT it_fieldlist ASSIGNING <lfs_fl>.
+      CLEAR ls_sval.
+
+      ls_sval-tabname = <lfs_fl>-tabname.
+      ls_sval-fieldname = <lfs_fl>-fieldname.
+      ls_sval-fieldtext = <lfs_fl>-fieldtext.
+      IF iv_display = abap_true.
+        ls_sval-field_attr = '02'.   " Display only
+      ELSE.
+        ls_sval-field_attr = '  '.
+      ENDIF.
+      " ls_sval-field_obl = <lfs_fl>-field_obl.
+      ls_sval-novaluehlp = abap_true.
+      ls_sval-value = <lfs_fl>-value.
+
+      APPEND ls_sval TO et_svals.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Private Method ZCL_MM_COI_UTILITY=>CONVERT_SVALS_TO_FIELDLIST
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_SVALS                       TYPE        TY_SVAL
+* | [<-->] CT_FIELDLIST                   TYPE        ZMM_COI3WC_CONF_SCFIELD_TT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD CONVERT_SVALS_TO_FIELDLIST.
+
+    DATA: lv_s1    TYPE i,
+          lv_s2    TYPE i,
+          lt_svals TYPE ty_sval.
+
+    FIELD-SYMBOLS: <lfs_sval>  TYPE sval,
+                   <lfs_field> TYPE zmm_coi3wc_conf_scfield_st.
+
+    CLEAR lt_svals.
+    LOOP AT it_svals ASSIGNING <lfs_sval> WHERE fieldname <> screenmessage_field.
+      APPEND <lfs_sval> TO lt_svals.
+    ENDLOOP.
+
+    " Check the sizes ae fine
+    DESCRIBE TABLE lt_svals LINES lv_s1.
+    DESCRIBE TABLE ct_fieldlist LINES lv_s2.
+
+    IF lv_s1 <> lv_s2 OR lv_s1 = 0.
+      RETURN.
+    ENDIF.
+
+    " Loop: assumption that line order is correct in both tables - if no, use FIELDTEXT to identify lines
+    LOOP AT lt_svals ASSIGNING <lfs_sval>.
+      UNASSIGN <lfs_field>.
+      READ TABLE ct_fieldlist ASSIGNING <lfs_field> INDEX sy-tabix.
+      IF sy-subrc = 0 AND <lfs_field> IS ASSIGNED.
+        <lfs_field>-value = <lfs_sval>-value.
+      ENDIF.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI_UTILITY=>FINAL_CHECK_INPUT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_CHECKVALS                   TYPE        ZMM_COI3WC_CONF_SCREEN_TT
+* | [<---] EV_SUCCESS                     TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD FINAL_CHECK_INPUT.
+
+    FIELD-SYMBOLS: <lfs_sc1> TYPE zmm_coi3wc_conf_screen_st,
+                   <lfs_sc2> TYPE zmm_coi3wc_conf_screen_st,
+                   <lfs_fl1> TYPE zmm_coi3wc_conf_scfield_st,
+                   <lfs_fl2> TYPE zmm_coi3wc_conf_scfield_st.
+
+    ev_success = abap_true.
+
+    " The check has to be done in screen pairs
+    LOOP AT it_checkvals ASSIGNING <lfs_sc1>.
+      LOOP AT it_checkvals ASSIGNING <lfs_sc2> WHERE ord > <lfs_sc1>-ord.
+
+        " Compare fields that present in both and has value
+        LOOP AT <lfs_sc1>-fields ASSIGNING <lfs_fl1> WHERE value <> space.
+          LOOP AT <lfs_sc1>-fields ASSIGNING <lfs_fl2> WHERE tabname = <lfs_fl1>-tabname
+                                                        AND fieldname = <lfs_fl1>-fieldname.
+
+            IF <lfs_fl1>-value <> <lfs_fl2>-value.
+              ev_success = abap_false.
+              RETURN.
+            ENDIF.
+
+          ENDLOOP.
+        ENDLOOP.
+
+      ENDLOOP.
+      " Just to be sure check one more time the obligatory fields
+      LOOP AT <lfs_sc1>-fields ASSIGNING <lfs_fl1> WHERE field_obl = abap_true
+                                                    AND value = space.
+        ev_success = abap_false.
+        RETURN.
+      ENDLOOP.
+    ENDLOOP.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI_UTILITY=>GET_ATINN
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ATNAM                       TYPE        ATNAM
+* | [<---] EV_ATINN                       TYPE        ATINN
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_atinn.
+
+    TYPES: BEGIN OF lty_cabn,
+             atinn TYPE atinn,
+             datuv TYPE datuv,
+           END OF lty_cabn.
+    DATA: lst_cabn TYPE lty_cabn,
+          ltt_cabn TYPE STANDARD TABLE OF lty_cabn.
+
+    SELECT atinn datuv
+      FROM cabn
+      INTO TABLE ltt_cabn
+      WHERE atnam = iv_atnam.
+    IF sy-subrc <> 0 OR ltt_cabn IS INITIAL.
+      CLEAR ev_atinn.
+      EXIT.
+    ENDIF.
+
+    SORT ltt_cabn BY datuv DESCENDING.
+    READ TABLE ltt_cabn INTO lst_cabn INDEX 1.
+    ev_atinn = lst_cabn-atinn.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI_UTILITY=>GET_MATERIAL_INFORMATION
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_MATNR                       TYPE        MATNR
+* | [<---] EV_MTART                       TYPE        MTART
+* | [<---] EV_HAZARDOUS_CLASS             TYPE        ATWRT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_material_information.
+
+    DATA: lv_objek TYPE objnum,
+          lt_class TYPE STANDARD TABLE OF sclass,
+          lt_objdt TYPE STANDARD TABLE OF clobjdat.
+    FIELD-SYMBOLS: <lfs_objdt> TYPE clobjdat.
+
+    SELECT SINGLE mtart INTO ev_mtart
+      FROM mara
+      WHERE matnr = iv_matnr.
+    IF sy-subrc <> 0.
+      CLEAR ev_mtart.
+    ENDIF.
+
+    lv_objek = iv_matnr.
+    CALL FUNCTION 'CLAF_CLASSIFICATION_OF_OBJECTS'
+      EXPORTING
+        classtype          = class_type_material
+        object             = lv_objek
+      TABLES
+        t_class            = lt_class
+        t_objectdata       = lt_objdt
+      EXCEPTIONS
+        no_classification  = 1
+        no_classtypes      = 2
+        invalid_class_type = 3
+        OTHERS             = 4.
+    IF sy-subrc NE 0.
+      ev_hazardous_class = space.
+    ELSE.
+
+      " Hazardous class
+      LOOP AT lt_objdt ASSIGNING <lfs_objdt> WHERE atnam = atnam_hazardous_class.
+        EXIT.
+      ENDLOOP.
+      IF sy-subrc = 0 AND <lfs_objdt> IS ASSIGNED.
+        ev_hazardous_class = <lfs_objdt>-ausp1.
+      ELSE.
+        ev_hazardous_class = space.
+      ENDIF.
+
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI_UTILITY=>POPUP_CHECK_COI_CHECKSUM
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_COI                         TYPE        ZPP_COI
+* | [<---] EV_OK                          TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD popup_check_coi_checksum.
+
+    DATA: lv_calc_input TYPE char100,
+          lv_checksum   TYPE char1,
+          lv_error      TYPE xfeld.
+    DATA: lv_title TYPE text100,
+          lv_text  TYPE text100.
+
+    lv_calc_input = iv_coi.
+
+    CALL METHOD zcl_mm_coi3wc_iso7064_chksum=>calculate
+      EXPORTING
+        iv_input    = lv_calc_input
+      IMPORTING
+        ev_checksum = lv_checksum
+        ev_error    = lv_error.
+    IF lv_error = abap_true OR lv_checksum = space.
+      RETURN.
+    ENDIF.
+
+    MESSAGE i016(zmm_coi_msg) INTO lv_title.
+    CONCATENATE iv_coi '-' lv_checksum INTO lv_text.
+
+    CALL METHOD popup_confirmation
+      EXPORTING
+        iv_title       = lv_title
+        iv_text        = lv_text
+        iv_with_cancel = abap_true
+      IMPORTING
+        ev_ok          = ev_ok.
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI_UTILITY=>POPUP_CONFIRMATION
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_TITLE                       TYPE        TEXT100
+* | [--->] IV_TEXT                        TYPE        TEXT100
+* | [--->] IV_WITH_CANCEL                 TYPE        XFELD
+* | [<---] EV_OK                          TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD POPUP_CONFIRMATION.
+
+    DATA  lv_ans(1) TYPE c.
+
+    ev_ok = abap_false.
+
+    CALL FUNCTION 'POPUP_TO_CONFIRM'
+      EXPORTING
+        titlebar              = iv_title
+        text_question         = iv_text
+        text_button_1         = button_text_ok
+        text_button_2         = button_text_cancel
+        display_cancel_button = iv_with_cancel
+        start_column          = popup_message_start_column
+        start_row             = popup_message_start_row
+      IMPORTING
+        answer                = lv_ans.
+    IF sy-subrc <> 0.
+      EXIT.
+    ENDIF.
+
+    IF lv_ans = '1'.
+      ev_ok = abap_true.
+    ENDIF.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI_UTILITY=>PROCESS_SCREEN
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_POPUP_TITLE                 TYPE        TEXT100
+* | [<---] EV_RETURNCODE                  TYPE        CHAR1
+* | [<-->] CT_FIELDS                      TYPE        ZMM_COI3WC_CONF_SCFIELD_TT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD process_screen.
+
+    DATA: lv_done       TYPE xfeld,
+          lt_svals      TYPE ty_sval,
+          lv_message    TYPE text50,
+          lt_fields     TYPE TABLE OF sval,
+          ls_fields     TYPE sval,
+          lv_returncode TYPE char1,
+          lt_dfields    TYPE zmm_coi3wc_conf_scfield_tt,
+          ls_field      TYPE zmm_coi3wc_conf_scfield_st,
+          lv_cstext     TYPE char100,
+          lv_cschecksum TYPE char1,
+          lv_cserror    TYPE xfeld,
+          lv_text       TYPE char100.
+
+    FIELD-SYMBOLS: <lfs_field> TYPE zmm_coi3wc_conf_scfield_st.
+
+    " Check that we have fields
+    IF ct_fields IS INITIAL.
+      RETURN.
+    ENDIF.
+
+    " Sort by display order
+    SORT ct_fields BY ord ASCENDING.
+
+    " Start processing 2 screens: input + result display
+    lv_done = abap_false.
+    CLEAR lv_message.
+    WHILE lv_done = abap_false.
+
+
+      " START screen for user input
+      " Convert field list to svals
+      CALL METHOD convert_fieldlist_to_svals
+        EXPORTING
+          it_fieldlist = ct_fields
+          iv_display   = abap_false
+          iv_message   = lv_message
+        IMPORTING
+          et_svals     = lt_svals.
+      CLEAR lt_fields.
+      LOOP AT lt_svals INTO ls_fields.
+        APPEND ls_fields TO lt_fields.
+      ENDLOOP.
+
+      " Call popup
+      CALL FUNCTION popup_input_fm
+        EXPORTING
+          no_value_check  = abap_true
+          popup_title     = iv_popup_title
+          start_column    = popup_input_start_column
+          start_row       = popup_input_start_row
+        IMPORTING
+          returncode      = lv_returncode
+        TABLES
+          fields          = lt_fields
+        EXCEPTIONS
+          error_in_fields = 1
+          OTHERS          = 2.
+      IF sy-subrc <> 0 OR lv_returncode = return_cancel.
+        ev_returncode = return_cancel.
+        RETURN.
+      ENDIF.
+
+      " Convert back to field list
+      CLEAR lt_svals.
+      LOOP AT lt_fields INTO ls_fields.
+        APPEND ls_fields TO lt_svals.
+      ENDLOOP.
+      CALL METHOD zcl_mm_coi_utility=>convert_svals_to_fieldlist
+        EXPORTING
+          it_svals     = lt_svals
+        CHANGING
+          ct_fieldlist = ct_fields.
+
+      " Check that obligatory fields filled
+      CLEAR lv_message.
+      LOOP AT ct_fields ASSIGNING <lfs_field> WHERE field_obl = abap_true.
+        IF <lfs_field>-value = space.
+          MESSAGE i005(zmm_coi_msg) WITH <lfs_field>-fieldtext INTO lv_message.
+          EXIT.
+        ENDIF.
+      ENDLOOP.
+
+      " We can continue here only if no message
+      IF lv_message = space.
+
+        " For the display results screen we need a copy of the fields,
+        " because to some of them we will add a checksum, but later
+        " we do not want to store it.
+        CLEAR lt_dfields.
+        LOOP AT ct_fields INTO ls_field.
+          " Add checksum if needed
+          IF ls_field-checksum = abap_true AND ls_field-value <> space.
+            lv_cstext = ls_field-value.
+            CALL METHOD zcl_mm_coi3wc_iso7064_chksum=>calculate
+              EXPORTING
+                iv_input    = lv_cstext
+              IMPORTING
+                ev_checksum = lv_cschecksum
+                ev_error    = lv_cserror.
+            IF lv_cserror = abap_true.
+              MESSAGE i006(zmm_coi_msg) INTO lv_text.
+            ELSE.
+              lv_text = lv_cschecksum.
+            ENDIF.
+            CONCATENATE ls_field-value '-' lv_text INTO ls_field-value SEPARATED BY space.
+            CLEAR lv_text.
+          ENDIF.
+          APPEND ls_field TO lt_dfields.
+        ENDLOOP.
+
+        " Prepare and call display screen
+        MESSAGE i007(zmm_coi_msg) INTO lv_text.
+        CONCATENATE iv_popup_title lv_text INTO lv_text SEPARATED BY space.
+        MESSAGE i008(zmm_coi_msg) INTO lv_message.
+        " Copy fields to sval
+        CALL METHOD convert_fieldlist_to_svals
+          EXPORTING
+            it_fieldlist = lt_dfields
+            iv_display   = abap_true
+            iv_message   = lv_message
+          IMPORTING
+            et_svals     = lt_svals.
+        CLEAR lt_fields.
+        LOOP AT lt_svals INTO ls_fields.
+          APPEND ls_fields TO lt_fields.
+        ENDLOOP.
+
+        " Call popup
+        CALL FUNCTION popup_input_fm
+          EXPORTING
+            no_value_check  = abap_true
+            popup_title     = lv_text
+            start_column    = popup_input_start_column
+            start_row       = popup_input_start_row
+          IMPORTING
+            returncode      = lv_returncode
+          TABLES
+            fields          = lt_fields
+          EXCEPTIONS
+            error_in_fields = 1
+            OTHERS          = 2.
+        IF sy-subrc <> 0 OR lv_returncode = return_cancel.
+          ev_returncode = return_cancel.
+          RETURN.
+        ENDIF.
+        IF lv_returncode = return_ok.
+          " We are done
+          ev_returncode = return_ok.
+          lv_done = abap_true.
+        ENDIF.
+      ENDIF.
+
+    ENDWHILE.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI_UTILITY=>READ_ZMM_PARAM
+* +-------------------------------------------------------------------------------------------------+
+* | [<---] ET_PARAM                       TYPE        ZMM_COI_ACTIVATION_PARAMS_TT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD READ_ZMM_PARAM.
+
+    DATA: lv_matnr TYPE matnr.
+
+    CLEAR et_param.
+
+    " Main activation parameters
+    SELECT lookup_name free_key free_key_value value1
+      FROM zmm_param
+      INTO TABLE et_param
+      WHERE lookup_name = lookup_name_active_gr
+        AND indicator1 = abap_true.
+
+    SELECT lookup_name free_key free_key_value value1
+      FROM zmm_param
+      APPENDING TABLE et_param
+      WHERE lookup_name = lookup_name_active_gr
+        AND indicator1 = abap_true.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI_UTILITY=>SAVE_BATCH_COI_LINK
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_MATNR                       TYPE        MATNR
+* | [--->] IV_CHARG                       TYPE        CHARG_D
+* | [--->] IV_COI                         TYPE        ZM_COI_COI_FIELD
+* | [--->] IV_DIN                         TYPE        ZM_COI_DIN_FIELD
+* | [--->] IV_EBELN                       TYPE        BSTNR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD save_batch_coi_link.
+
+    DATA: ls_link     TYPE zmm_batch_coidin,
+          lv_oldebeln TYPE bstnr.
+
+    CLEAR ls_link.
+    ls_link-matnr = iv_matnr.
+    ls_link-charg = iv_charg.
+    ls_link-coi = iv_coi.
+    ls_link-din = iv_din.
+    MODIFY zmm_batch_coidin FROM ls_link.
+
+  ENDMETHOD.
+ENDCLASS.

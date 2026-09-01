@@ -1,0 +1,11 @@
+1. SO COI-BATCH CHECK nicely
+Include ZVV_COI_MV45AFZB_CHECK_VBAP created (to check batch in VBAP at screen input instead of in the end).
+It has to be added to 
+
+MV45AFZB
+USEREXIT_CHECK_VBAP
+
+but it's locked in another transport
+
+2. TO check batch at save
+BADI WM_ENHANCEMENT, method TO_CREATE???

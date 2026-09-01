@@ -1,0 +1,4 @@
+CANNOT REPRODUCE - 1. PO COI: in COR2 visible, in COR3 the field is empty
+
+DONE, TEST IT - 2. MIGO GR for PO also muct check that the batch has the same COI as the PO
+

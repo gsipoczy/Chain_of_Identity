@@ -1,0 +1,57 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZXCO1O05.
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Module  GET_SCREEN  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE get_screen OUTPUT.
+
+  ASSIGN: (lv_ordertype) TO <fs_order>,
+            (lv_tran_type) TO <fs_ttyp>.
+  ASSIGN: (gv_plant) TO <gf_plant>.
+
+  SELECT * FROM zvv_param INTO TABLE @DATA(lt_param)
+         WHERE lookup_name    = 'SAPLCOKO_SCREEN'
+         AND   free_key       = @<fs_order>
+         AND   indicator1     = @abap_true.
+
+  IF sy-subrc EQ 0.
+    LOOP AT lt_param ASSIGNING FIELD-SYMBOL(<ls_param>).
+      IF <ls_param>-value1 IS NOT INITIAL.
+        SPLIT <ls_param>-value1 AT ',' INTO TABLE DATA(lt_werks).
+        READ TABLE lt_werks TRANSPORTING NO FIELDS
+        WITH KEY table_line = <gf_plant>.
+        IF sy-subrc EQ 0.
+          gv_screen = <ls_param>-description1.
+          EXIT.
+        ENDIF.
+      ENDIF.
+
+      IF <ls_param>-value2 IS NOT INITIAL.
+        CLEAR lt_werks.
+        SPLIT <ls_param>-value2 AT ',' INTO TABLE lt_werks.
+        READ TABLE lt_werks TRANSPORTING NO FIELDS
+        WITH KEY table_line = <gf_plant>.
+        IF sy-subrc EQ 0.
+          gv_screen = <ls_param>-description1.
+          EXIT.
+        ENDIF.
+      ENDIF.
+
+      IF <ls_param>-value3 IS NOT INITIAL.
+        CLEAR lt_werks.
+        SPLIT <ls_param>-value3 AT ',' INTO TABLE lt_werks.
+        READ TABLE lt_werks TRANSPORTING NO FIELDS
+        WITH KEY table_line = <gf_plant>.
+        IF sy-subrc EQ 0.
+          gv_screen = <ls_param>-description1.
+          EXIT.
+        ENDIF.
+      ENDIF.
+    ENDLOOP.
+  ENDIF.
+
+
+ENDMODULE.

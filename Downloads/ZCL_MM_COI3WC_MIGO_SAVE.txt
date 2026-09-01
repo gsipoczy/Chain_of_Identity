@@ -1,0 +1,443 @@
+class ZCL_MM_COI3WC_MIGO_SAVE definition
+  public
+  final
+  create public .
+
+public section.
+
+  methods EXECUTE
+    importing
+      !IS_MKPF type MKPF
+      !IS_MSEG type MSEG
+    exporting
+      !ET_VALUES type API_VAL_I_T
+      !ES_BAPIRET2 type BAPIRET2 .
+protected section.
+private section.
+
+  methods PREPARE_RETURN
+    importing
+      !IT_CONFIG type ZMM_COI3WC_CONF_SCREEN_TT
+      !IV_SUCCESS type XFELD
+      !IS_MSEG type MSEG
+    changing
+      !CT_VALUES type API_VAL_I_T
+      !CS_BAPIRET2 type BAPIRET2 .
+  methods ADD_CHARACTERISTIC
+    importing
+      !IV_ATNAM type ATNAM
+      !IV_VALUE type SPO_VALUE
+    changing
+      !CT_VALUES type API_VAL_I_T .
+  methods CREATE_VALUES_LINE
+    importing
+      !IV_ATNAM type ATNAM
+    exporting
+      !ES_VALUES type API_VAL_I .
+  methods POPUP_CONFIG_ERROR
+    importing
+      !IV_MATNR type MATNR .
+  methods POPUP_USER_WANTS_3WAY_CHECK
+    exporting
+      !EV_ANSWER type XFELD .
+  methods POPUP_UNSUCCESSFUL
+    exporting
+      !EV_ANSWER type XFELD .
+  methods SAVE_LINK
+    importing
+      !IS_MSEG type MSEG
+      !IT_CONFIG type ZMM_COI3WC_CONF_SCREEN_TT .
+ENDCLASS.
+
+
+
+CLASS ZCL_MM_COI3WC_MIGO_SAVE IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_MM_COI3WC_MIGO_SAVE->ADD_CHARACTERISTIC
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ATNAM                       TYPE        ATNAM
+* | [--->] IV_VALUE                       TYPE        SPO_VALUE
+* | [<-->] CT_VALUES                      TYPE        API_VAL_I_T
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD ADD_CHARACTERISTIC.
+
+    DATA: ls_line TYPE api_val_i.
+
+    FIELD-SYMBOLS: <lfs_line> TYPE api_val_i.
+
+    CALL METHOD me->create_values_line
+      EXPORTING
+        iv_atnam  = iv_atnam
+      IMPORTING
+        es_values = ls_line.
+
+    UNASSIGN <lfs_line>.
+    LOOP AT ct_values ASSIGNING <lfs_line> WHERE atnam = iv_atnam.
+      EXIT.
+    ENDLOOP.
+    IF sy-subrc = 0 AND <lfs_line> IS ASSIGNED.
+      <lfs_line>-atwtb = iv_value.
+      EXIT.
+    ENDIF.
+
+    ls_line-atwtb = iv_value.
+    APPEND ls_line TO ct_values.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_MM_COI3WC_MIGO_SAVE->CREATE_VALUES_LINE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_ATNAM                       TYPE        ATNAM
+* | [<---] ES_VALUES                      TYPE        API_VAL_I
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD CREATE_VALUES_LINE.
+
+    TYPES: BEGIN OF lty_cabn,
+             atinn TYPE atinn,
+             datuv TYPE datuv,
+           END OF lty_cabn.
+    DATA: lst_cabn TYPE lty_cabn,
+          ltt_cabn TYPE STANDARD TABLE OF lty_cabn.
+
+    es_values-atnam = iv_atnam.
+
+    SELECT atinn datuv
+      FROM cabn
+      INTO TABLE ltt_cabn
+      WHERE atnam = iv_atnam.
+    IF sy-subrc <> 0 OR ltt_cabn IS INITIAL.
+      CLEAR es_values.
+      EXIT.
+    ENDIF.
+
+    SORT ltt_cabn BY datuv DESCENDING.
+    READ TABLE ltt_cabn INTO lst_cabn INDEX 1.
+    es_values-atinn = lst_cabn-atinn.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Public Method ZCL_MM_COI3WC_MIGO_SAVE->EXECUTE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_MKPF                        TYPE        MKPF
+* | [--->] IS_MSEG                        TYPE        MSEG
+* | [<---] ET_VALUES                      TYPE        API_VAL_I_T
+* | [<---] ES_BAPIRET2                    TYPE        BAPIRET2
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD execute.
+
+    DATA: lv_boolean    TYPE xfeld,
+          lv_returncode TYPE char1,
+          lv_done       TYPE xfeld,
+          lt_config     TYPE zmm_coi3wc_conf_screen_tt,
+          lt_values     TYPE api_val_i_t,
+          ls_bapiret2   TYPE bapiret2.
+
+    FIELD-SYMBOLS: <lfs_screen> TYPE zmm_coi3wc_conf_screen_st.
+
+    " Check that 3-way check needed or not
+    CALL METHOD zcl_mm_coi_utility=>check_coi_needed_gr
+      EXPORTING
+        is_mkpf   = is_mkpf
+        is_mseg   = is_mseg
+      IMPORTING
+        ev_needed = lv_boolean.
+    IF lv_boolean = abap_false.
+      RETURN.
+    ENDIF.
+
+    " Get the configuration
+    CALL METHOD zcl_mm_coi3wc_config=>get_configuration
+      EXPORTING
+        iv_matnr         = is_mseg-matnr
+      IMPORTING
+        et_configuration = lt_config
+        ev_error         = lv_boolean.
+    IF lv_boolean = abap_true OR lt_config IS INITIAL.
+      CALL METHOD me->popup_config_error
+        EXPORTING
+          iv_matnr = is_mseg-matnr.
+      CALL METHOD me->prepare_return
+        EXPORTING
+          it_config   = lt_config
+          iv_success  = abap_false
+          is_mseg     = is_mseg
+        CHANGING
+          ct_values   = lt_values
+          cs_bapiret2 = ls_bapiret2.
+      et_values = lt_values.
+      es_bapiret2 = ls_bapiret2.
+      RETURN.
+    ENDIF.
+
+    " Ask the user whether want it at all
+    CALL METHOD me->popup_user_wants_3way_check
+      IMPORTING
+        ev_answer = lv_boolean.
+    IF lv_boolean = abap_false.
+      CALL METHOD me->prepare_return
+        EXPORTING
+          it_config   = lt_config
+          iv_success  = abap_false
+          is_mseg     = is_mseg
+        CHANGING
+          ct_values   = lt_values
+          cs_bapiret2 = ls_bapiret2.
+      et_values = lt_values.
+      es_bapiret2 = ls_bapiret2.
+      RETURN.
+    ENDIF.
+
+    " Sort the screens
+    SORT lt_config BY ord ASCENDING.
+
+    " Now process the screens one by one
+    lv_done = abap_false.
+    WHILE lv_done = abap_false.
+
+      " Loop on screens
+      LOOP AT lt_config ASSIGNING <lfs_screen>.
+
+        " process screen
+        CALL METHOD zcl_mm_coi_utility=>process_screen
+          EXPORTING
+            iv_popup_title = <lfs_screen>-popup_title
+          IMPORTING
+            ev_returncode  = lv_returncode
+          CHANGING
+            ct_fields      = <lfs_screen>-fields.
+        " If the user cancelled, we ask if wants to repeat.
+        IF lv_returncode = zcl_mm_coi_utility=>return_cancel.
+          CALL METHOD me->popup_unsuccessful
+            IMPORTING
+              ev_answer = lv_boolean.
+          IF lv_boolean = abap_false. " No, user wants to get out from here
+            CALL METHOD me->prepare_return
+              EXPORTING
+                it_config   = lt_config
+                iv_success  = abap_false
+                is_mseg     = is_mseg
+              CHANGING
+                ct_values   = lt_values
+                cs_bapiret2 = ls_bapiret2.
+            et_values = lt_values.
+            es_bapiret2 = ls_bapiret2.
+            RETURN.
+          ENDIF.
+          " User wants to do again so exit from the screen loop
+          EXIT.
+        ENDIF. " screen processig was cancelled
+
+      ENDLOOP.
+
+      " Here we must continue only if the user did not cancel,
+      " otherwise just return to the beginning.
+      IF lv_returncode = zcl_mm_coi_utility=>return_ok.
+
+        " Check the complete user input
+        CALL METHOD zcl_mm_coi_utility=>final_check_input
+          EXPORTING
+            it_checkvals = lt_config
+          IMPORTING
+            ev_success   = lv_boolean.
+        IF lv_boolean = abap_false.
+          CALL METHOD me->popup_unsuccessful
+            IMPORTING
+              ev_answer = lv_boolean.
+          IF lv_boolean = abap_false. " No, user wants to get out from here
+            CALL METHOD me->prepare_return
+              EXPORTING
+                it_config   = lt_config
+                iv_success  = abap_false
+                is_mseg     = is_mseg
+              CHANGING
+                ct_values   = lt_values
+                cs_bapiret2 = ls_bapiret2.
+            et_values = lt_values.
+            es_bapiret2 = ls_bapiret2.
+            RETURN.
+          ENDIF.
+        ELSE. " Success
+          CALL METHOD me->prepare_return
+            EXPORTING
+              it_config   = lt_config
+              iv_success  = abap_true
+              is_mseg     = is_mseg
+            CHANGING
+              ct_values   = lt_values
+              cs_bapiret2 = ls_bapiret2.
+          et_values = lt_values.
+          es_bapiret2 = ls_bapiret2.
+          lv_done = abap_true.
+        ENDIF.
+      ENDIF.
+    ENDWHILE.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_MM_COI3WC_MIGO_SAVE->POPUP_CONFIG_ERROR
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_MATNR                       TYPE        MATNR
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD POPUP_CONFIG_ERROR.
+
+    DATA: lv_title TYPE text100,
+          lv_text  TYPE text100.
+
+    MESSAGE i009(zmm_coi_msg) INTO lv_title.
+    MESSAGE i010(zmm_coi_msg) WITH iv_matnr INTO lv_text.
+
+    CALL METHOD zcl_mm_coi_utility=>popup_confirmation
+      EXPORTING
+        iv_title       = lv_title
+        iv_text        = lv_text
+        iv_with_cancel = abap_false.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_MM_COI3WC_MIGO_SAVE->POPUP_UNSUCCESSFUL
+* +-------------------------------------------------------------------------------------------------+
+* | [<---] EV_ANSWER                      TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD POPUP_UNSUCCESSFUL.
+    DATA: lv_title TYPE text100,
+          lv_text  TYPE text100.
+
+    MESSAGE i013(zmm_coi_msg) INTO lv_title.
+    MESSAGE i014(zmm_coi_msg) INTO lv_text.
+
+    CALL METHOD zcl_mm_coi_utility=>popup_confirmation
+      EXPORTING
+        iv_title       = lv_title
+        iv_text        = lv_text
+        iv_with_cancel = abap_false
+      IMPORTING
+        ev_ok          = ev_answer.
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_MM_COI3WC_MIGO_SAVE->POPUP_USER_WANTS_3WAY_CHECK
+* +-------------------------------------------------------------------------------------------------+
+* | [<---] EV_ANSWER                      TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD POPUP_USER_WANTS_3WAY_CHECK.
+    DATA: lv_title TYPE text100,
+          lv_text  TYPE text100.
+
+    MESSAGE i011(zmm_coi_msg) INTO lv_title.
+    MESSAGE i012(zmm_coi_msg) INTO lv_text.
+
+    CALL METHOD zcl_mm_coi_utility=>popup_confirmation
+      EXPORTING
+        iv_title       = lv_title
+        iv_text        = lv_text
+        iv_with_cancel = abap_false
+      IMPORTING
+        ev_ok          = ev_answer.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_MM_COI3WC_MIGO_SAVE->PREPARE_RETURN
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IT_CONFIG                      TYPE        ZMM_COI3WC_CONF_SCREEN_TT
+* | [--->] IV_SUCCESS                     TYPE        XFELD
+* | [--->] IS_MSEG                        TYPE        MSEG
+* | [<-->] CT_VALUES                      TYPE        API_VAL_I_T
+* | [<-->] CS_BAPIRET2                    TYPE        BAPIRET2
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD PREPARE_RETURN.
+
+    DATA: lv_value TYPE spo_value.
+
+    FIELD-SYMBOLS: <lfs_screen> TYPE zmm_coi3wc_conf_screen_st,
+                   <lfs_field>  TYPE zmm_coi3wc_conf_scfield_st.
+
+    " Set the successful 3-way-check characteristic
+    IF iv_success = abap_true.
+      lv_value = zcl_mm_coi_utility=>atwtb_yes.
+    ELSE.
+      lv_value = zcl_mm_coi_utility=>atwtb_no.
+    ENDIF.
+    CALL METHOD me->add_characteristic
+      EXPORTING
+        iv_atnam  = zcl_mm_coi_utility=>atnam_3way_success
+        iv_value  = lv_value
+      CHANGING
+        ct_values = ct_values.
+
+    " The other characteristics we give back only in case success
+    CHECK iv_success = abap_true.
+
+    LOOP AT it_config ASSIGNING <lfs_screen>.
+      LOOP AT <lfs_screen>-fields ASSIGNING <lfs_field>.
+        CALL METHOD me->add_characteristic
+          EXPORTING
+            iv_atnam  = <lfs_field>-atnam
+            iv_value  = <lfs_field>-value
+          CHANGING
+            ct_values = ct_values.
+      ENDLOOP.
+    ENDLOOP.
+
+    CALL METHOD me->save_link
+      EXPORTING
+        is_mseg   = is_mseg
+        it_config = it_config.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Instance Private Method ZCL_MM_COI3WC_MIGO_SAVE->SAVE_LINK
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IS_MSEG                        TYPE        MSEG
+* | [--->] IT_CONFIG                      TYPE        ZMM_COI3WC_CONF_SCREEN_TT
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD save_link.
+
+    FIELD-SYMBOLS: <lfs_screen> TYPE zmm_coi3wc_conf_screen_st,
+                   <lfs_field>  TYPE zmm_coi3wc_conf_scfield_st.
+
+    DATA: lv_coi TYPE zm_coi_coi_field,
+          lv_din TYPE zm_coi_din_field.
+
+    LOOP AT it_config ASSIGNING <lfs_screen>.
+      LOOP AT <lfs_screen>-fields ASSIGNING <lfs_field>.
+
+        IF <lfs_field>-atnam = zcl_mm_coi_utility=>zfs_atnam_coi.
+          lv_coi = <lfs_field>-value.
+        ENDIF.
+        IF <lfs_field>-atnam = zcl_mm_coi_utility=>zfs_atnam_din.
+          lv_din = <lfs_field>-value.
+        ENDIF.
+
+      ENDLOOP.
+    ENDLOOP.
+
+    IF NOT is_mseg-matnr IS INITIAL AND
+        NOT is_mseg-charg IS INITIAL AND
+      ( NOT lv_coi IS INITIAL OR NOT lv_din IS INITIAL ).
+
+      CALL METHOD zcl_mm_coi_utility=>save_batch_coi_link
+        EXPORTING
+          iv_matnr = is_mseg-matnr
+          iv_charg = is_mseg-charg
+          iv_coi   = lv_coi
+          iv_din   = lv_din
+          iv_ebeln = is_mseg-ebeln.
+
+    ENDIF.
+
+  ENDMETHOD.
+ENDCLASS.

@@ -1,0 +1,120 @@
+class ZCL_MM_COI3WC_CONFIG definition
+  public
+  final
+  create public .
+
+public section.
+
+  class-methods GET_CONFIGURATION
+    importing
+      !IV_MATNR type MATNR
+    exporting
+      !ET_CONFIGURATION type ZMM_COI3WC_CONF_SCREEN_TT
+      !EV_ERROR type XFELD .
+protected section.
+private section.
+
+  constants DEFAULT_CONFIG type ZM_COICONF_CONF_ID value 'DEFAULT' ##NO_TEXT.
+  constants DEFAULT_SCREEN_TITLE type ZM_COICONF_TEXT value 'COI input screen' ##NO_TEXT.
+  constants DEFAULT_TABNAME type TABNAME value 'ZMM_BATCH_COIDIN' ##NO_TEXT.
+  constants DEFAULT_FIELDNAME type FIELDNAME value 'COI' ##NO_TEXT.
+ENDCLASS.
+
+
+
+CLASS ZCL_MM_COI3WC_CONFIG IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI3WC_CONFIG=>GET_CONFIGURATION
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_MATNR                       TYPE        MATNR
+* | [<---] ET_CONFIGURATION               TYPE        ZMM_COI3WC_CONF_SCREEN_TT
+* | [<---] EV_ERROR                       TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_configuration.
+
+    TYPES:  lty_cfsc_st TYPE zmm_coiconf_cfsc,
+            lty_cfsc_tt TYPE TABLE OF zmm_coiconf_cfsc,
+            lty_scfl_st TYPE zmm_coiconf_scfl,
+            lty_scfl_tt TYPE TABLE OF zmm_coiconf_scfl.
+
+    DATA: lv_config     TYPE zm_coiconf_conf_id,
+          lt_cfsc       TYPE lty_cfsc_tt,
+          lt_scfl       TYPE lty_scfl_tt,
+          ls_confscreen TYPE zmm_coi3wc_conf_screen_st,
+          ls_conffield  TYPE zmm_coi3wc_conf_scfield_st,
+          lv_text       TYPE zm_coiconf_text,
+          ls_fielddef   TYPE zmm_coiconf_flds.
+
+    FIELD-SYMBOLS: <lfs_cfsc> TYPE lty_cfsc_st,
+                   <lfs_scfl> TYPE lty_scfl_st.
+
+    ev_error = abap_false.
+
+    " Get the configuration
+    SELECT SINGLE config INTO lv_config
+      FROM zmm_coiconf_matn
+      WHERE matnr = iv_matnr.
+    IF sy-subrc <> 0. " Try if we have default
+      SELECT SINGLE config INTO lv_config
+        FROM zmm_coiconf_conf
+        WHERE config = default_config.
+      IF sy-subrc <> 0.
+        ev_error = abap_true.
+        RETURN.
+      ENDIF.
+    ENDIF.
+
+    " Get the screens
+    SELECT * FROM zmm_coiconf_cfsc INTO TABLE lt_cfsc
+      WHERE config = lv_config.
+    IF sy-subrc <> 0 OR lv_config IS INITIAL.
+      ev_error = abap_true.
+      RETURN.
+    ENDIF.
+
+    " Create screen records
+    SORT lt_cfsc BY ordernum ASCENDING.
+    LOOP AT lt_cfsc ASSIGNING <lfs_cfsc>.
+      CLEAR ls_confscreen.
+      ls_confscreen-ord = <lfs_cfsc>-ordernum.
+      SELECT SINGLE text INTO lv_text
+        FROM zmm_coiconf_scrn
+        WHERE screen = <lfs_cfsc>-screen.
+      IF sy-subrc <> 0.
+        lv_text = default_screen_title.
+      ENDIF.
+      ls_confscreen-popup_title = lv_text.
+
+      " Get the fields of the screen
+      SELECT * FROM zmm_coiconf_scfl INTO TABLE lt_scfl
+        WHERE screen = <lfs_cfsc>-screen.
+      IF sy-subrc <> 0 OR lt_scfl IS INITIAL.
+        CONTINUE. " No fields, then do not add this screen at all.
+      ENDIF.
+
+      " Create field records
+      SORT lt_scfl BY ordernum ASCENDING.
+      LOOP AT lt_scfl ASSIGNING <lfs_scfl>.
+        CLEAR ls_conffield.
+        ls_conffield-ord = <lfs_scfl>-ordernum.
+        ls_conffield-tabname = default_tabname.
+        ls_conffield-fieldname = default_fieldname.
+        ls_conffield-field_obl = <lfs_scfl>-obligatory.
+        ls_conffield-atnam = <lfs_scfl>-atnam.
+        SELECT SINGLE * FROM zmm_coiconf_flds
+          INTO ls_fielddef
+          WHERE field = <lfs_scfl>-field.
+        IF sy-subrc = 0.
+          ls_conffield-fieldtext = ls_fielddef-text.
+          ls_conffield-checksum = ls_fielddef-checksum.
+        ENDIF.
+        APPEND ls_conffield TO ls_confscreen-fields.
+      ENDLOOP.
+
+      APPEND ls_confscreen TO et_configuration.
+    ENDLOOP.
+
+  ENDMETHOD.
+ENDCLASS.

@@ -1,0 +1,79 @@
+*&---------------------------------------------------------------------*
+*& Title          : COI link save at batch modification                *
+*& Create Date    : 05-DEC-2022                                        *
+*& Author         : Gabor Sipoczy                                      *
+*&---------------------------------------------------------------------*
+*& Description    : This is called within:                             *
+*&                  BADI definition: BATCH_MASTER                      *
+*&                  Method: CHECK_CLASSIF_BEFORE_SAVE                  *
+*&                  In class: ZCL_IM_QV_INTF_LIMS                      *
+*&                  Saves COI and DIN into table ZMM_BATCH_COIDIN      *
+*&                                                                     *
+*&---------------------------------------------------------------------*
+*& C H A N G E  H I S T O R Y                                          *
+*&---------------------------------------------------------------------*
+*& Date         | User ID   | Description                |Change Label *
+*&---------------------------------------------------------------------*
+*& 05-DEC-2022  ¦ GSIPOCZY  ¦ Initial                    ¦ N/A         *
+*&---------------------------------------------------------------------*
+*& Include ZM_COI_BATCH_MODIFICATION
+*&
+*&---------------------------------------------------------------------*
+
+DATA: lv_zzzzcoicoi_atinn_coi TYPE atinn,
+      lv_zzzzcoicoi_atinn_din TYPE atinn,
+      lv_zzzzcoicoi_atwrt_coi TYPE zm_coi_coi_field,
+      lv_zzzzcoicoi_atwrt_din TYPE zm_coi_din_field,
+      lv_zzzzcoicoi_matnr     TYPE matnr,
+      lv_zzzzcoicoi_charg     TYPE charg_d.
+
+FIELD-SYMBOLS: <lfs_zzzzcoicoi_ausp> TYPE ausp.
+
+" Basics
+IF i_class = zcl_mm_coi_utility=>coi_class AND
+    i_obtab = zcl_mm_coi_utility=>coi_obtab.
+
+  " Get the atinns
+  CALL METHOD zcl_mm_coi_utility=>get_atinn
+    EXPORTING
+      iv_atnam = zcl_mm_coi_utility=>zfs_atnam_coi
+    IMPORTING
+      ev_atinn = lv_zzzzcoicoi_atinn_coi.
+  CALL METHOD zcl_mm_coi_utility=>get_atinn
+    EXPORTING
+      iv_atnam = zcl_mm_coi_utility=>zfs_atnam_din
+    IMPORTING
+      ev_atinn = lv_zzzzcoicoi_atinn_din.
+  IF NOT lv_zzzzcoicoi_atinn_coi IS INITIAL AND
+      NOT lv_zzzzcoicoi_atinn_din IS INITIAL.
+
+    CLEAR: lv_zzzzcoicoi_atwrt_coi, lv_zzzzcoicoi_atwrt_din.
+    LOOP AT it_values_buffer ASSIGNING <lfs_zzzzcoicoi_ausp>
+      WHERE atinn = lv_zzzzcoicoi_atinn_coi OR
+            atinn = lv_zzzzcoicoi_atinn_din.
+      IF <lfs_zzzzcoicoi_ausp>-atinn = lv_zzzzcoicoi_atinn_coi.
+        lv_zzzzcoicoi_atwrt_coi = <lfs_zzzzcoicoi_ausp>-atwrt.
+      ENDIF.
+      IF <lfs_zzzzcoicoi_ausp>-atinn = lv_zzzzcoicoi_atinn_din.
+        lv_zzzzcoicoi_atwrt_din = <lfs_zzzzcoicoi_ausp>-atwrt.
+      ENDIF.
+    ENDLOOP.
+
+    IF NOT lv_zzzzcoicoi_atinn_coi IS INITIAL OR
+       NOT lv_zzzzcoicoi_atinn_din IS INITIAL.
+
+      lv_zzzzcoicoi_matnr = i_objek+0(18).
+      lv_zzzzcoicoi_charg = i_objek+18(10).
+
+      CALL METHOD zcl_mm_coi_utility=>save_batch_coi_link
+        EXPORTING
+          iv_matnr = lv_zzzzcoicoi_matnr
+          iv_charg = lv_zzzzcoicoi_charg
+          iv_coi   = lv_zzzzcoicoi_atwrt_coi
+          iv_din   = lv_zzzzcoicoi_atwrt_din
+          iv_ebeln = space.
+
+    ENDIF.
+
+  ENDIF. " Found ATINN for COI and DIN
+ENDIF. " CLASS and OBTAB is what we need

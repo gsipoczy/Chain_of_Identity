@@ -1,0 +1,153 @@
+class ZCL_MM_COI3WC_ISO7064_CHKSUM definition
+  public
+  final
+  create public .
+
+public section.
+
+  class-methods CALCULATE
+    importing
+      !IV_INPUT type CHAR100
+    exporting
+      !EV_CHECKSUM type CHAR1
+      !EV_ERROR type XFELD .
+protected section.
+private section.
+
+  constants CONTROLTEXT type CHAR100 value '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ* ' ##NO_TEXT.
+
+  class-methods CHECK_INPUT
+    importing
+      !IV_INPUT type CHAR100
+    exporting
+      !EV_ERROR type XFELD .
+  class-methods GET_CHECK_VALUE
+    importing
+      !IV_CHAR type CHAR1
+    exporting
+      !EV_CHECKVAL type INT2 .
+ENDCLASS.
+
+
+
+CLASS ZCL_MM_COI3WC_ISO7064_CHKSUM IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI3WC_ISO7064_CHKSUM=>CALCULATE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_INPUT                       TYPE        CHAR100
+* | [<---] EV_CHECKSUM                    TYPE        CHAR1
+* | [<---] EV_ERROR                       TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD calculate.
+
+    DATA: lv_input   TYPE char100,
+          lv_strlen  TYPE i,
+          i          TYPE i,
+          lv_char    TYPE char1,
+          lv_chkval  TYPE int2,
+          lv_calcval TYPE p LENGTH 16.
+
+    lv_input = iv_input.
+    CONDENSE lv_input NO-GAPS.
+
+    " Get the length
+    lv_strlen = strlen( lv_input ).
+    IF lv_strlen = 0.
+      ev_error = abap_true.
+      RETURN.
+    ENDIF.
+
+    " Check the input
+    CALL METHOD check_input
+      EXPORTING
+        iv_input = lv_input
+      IMPORTING
+        ev_error = ev_error.
+    IF ev_error = abap_true.
+      RETURN.
+    ENDIF.
+
+    " Calculate
+    lv_strlen = lv_strlen - 1.
+    i = 1.
+    lv_calcval = 0.
+    WHILE lv_strlen >= 0.
+
+      lv_char = lv_input+lv_strlen(1).
+      CALL METHOD zcl_mm_coi3wc_iso7064_chksum=>get_check_value
+        EXPORTING
+          iv_char     = lv_char
+        IMPORTING
+          ev_checkval = lv_chkval.
+      IF lv_chkval > 36.
+        ev_error = abap_true.
+        RETURN.
+      ENDIF.
+
+      lv_calcval = lv_calcval + lv_chkval * 2 ** i.
+
+      lv_strlen = lv_strlen - 1.
+      i = i + 1.
+    ENDWHILE.
+
+    lv_calcval = ( 38 - lv_calcval MOD 37 ) MOD 37.
+    i = lv_calcval.
+
+    ev_checksum = controltext+i(1).
+
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Private Method ZCL_MM_COI3WC_ISO7064_CHKSUM=>CHECK_INPUT
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_INPUT                       TYPE        CHAR100
+* | [<---] EV_ERROR                       TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD CHECK_INPUT.
+
+    DATA: lv_input TYPE char100.
+
+    lv_input = iv_input.
+    CONDENSE lv_input NO-GAPS.
+
+    IF NOT lv_input CO controltext.
+      ev_error = abap_true.
+      RETURN.
+    ENDIF.
+
+    ev_error = abap_false.
+
+  ENDMETHOD.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Private Method ZCL_MM_COI3WC_ISO7064_CHKSUM=>GET_CHECK_VALUE
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_CHAR                        TYPE        CHAR1
+* | [<---] EV_CHECKVAL                    TYPE        INT2
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD GET_CHECK_VALUE.
+
+    DATA: lv_offset TYPE i.
+
+    TRY.
+        FIND FIRST OCCURRENCE OF iv_char IN controltext MATCH OFFSET lv_offset.
+      CATCH cx_sy_find_infinite_loop
+        cx_sy_range_out_of_bounds
+        cx_sy_invalid_regex
+        cx_sy_regex_too_complex  INTO DATA(oref).
+        ev_checkval = 99.
+        RETURN.
+    ENDTRY.
+    IF sy-subrc = 0.
+      ev_checkval = lv_offset.
+    ELSE.
+      ev_checkval = 99.
+    ENDIF.
+
+  ENDMETHOD.
+ENDCLASS.

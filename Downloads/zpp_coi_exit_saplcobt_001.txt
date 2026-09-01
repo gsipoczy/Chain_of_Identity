@@ -1,0 +1,97 @@
+FUNCTION zpp_coi_exit_saplcobt_001.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  TABLES
+*"      HEADER_TABLE STRUCTURE  CAUFVDB
+*"      POSITION_TABLE STRUCTURE  AFPOB
+*"      STATUS_TABLE STRUCTURE  JEST
+*"      STATUS_TABLE_OLD STRUCTURE  JEST
+*"----------------------------------------------------------------------
+
+  DATA: ls_header   TYPE caufvdb,
+        lv_boolean  TYPE xfeld,
+        lv_msgty    TYPE syst_msgty,
+        ls_batchkey TYPE bapibatchkey,
+        ls_chars    TYPE bapi3060_valuation_char,
+        lt_chars    TYPE TABLE OF bapi3060_valuation_char,
+        lv_objek    TYPE  objnum,
+        lv_obtab    TYPE  tabelle,
+        lv_klart    TYPE  klassenart,
+        lv_class    TYPE  klasse_d.
+
+  FIELD-SYMBOLS: <lfs_jest>  TYPE jest,
+                 <lfs_afpob> TYPE afpob.
+
+  IF header_table IS INITIAL.
+    EXIT.
+  ENDIF.
+  LOOP AT header_table INTO ls_header.
+
+    " If COI is filled, update batches
+    IF ls_header-zzcoi <> space.
+
+      LOOP AT position_table ASSIGNING <lfs_afpob>
+        WHERE aufnr = ls_header-aufnr.
+
+        " Check batch existence
+        SELECT COUNT( * ) FROM mch1
+          WHERE matnr = <lfs_afpob>-matnr
+          AND charg = <lfs_afpob>-charg.
+        IF sy-subrc = 0.
+
+          ls_batchkey-material = <lfs_afpob>-matnr.
+          ls_batchkey-batch = <lfs_afpob>-charg.
+          CALL FUNCTION 'VB_BATCH_2_CLASS_OBJECT'
+            EXPORTING
+              i_matnr = <lfs_afpob>-matnr
+              i_charg = <lfs_afpob>-charg
+            IMPORTING
+              e_objek = lv_objek
+              e_obtab = lv_obtab
+              e_klart = lv_klart
+              e_class = lv_class.
+          ls_chars-class_type = lv_klart.
+          ls_chars-objectkey = lv_objek.
+          ls_chars-objecttable = lv_obtab.
+          ls_chars-charact = zcl_mm_coi_utility=>zfs_atnam_coi.
+          ls_chars-value_char = ls_header-zzcoi.
+          APPEND ls_chars TO lt_chars.
+
+          CALL FUNCTION 'BAPI_BATCH_SAVE_REPLICA'
+            EXPORTING
+              material            = ls_batchkey-material
+              batch               = ls_batchkey-batch
+            TABLES
+              classvaluationschar = lt_chars.
+
+        ENDIF.
+      ENDLOOP.
+
+    ENDIF.
+
+    " Check if COI needed
+    CALL METHOD zcl_mm_coi_utility=>check_coi_needed_po
+      EXPORTING
+        is_caufvdb = ls_header
+      IMPORTING
+        ev_needed  = lv_boolean.
+    IF lv_boolean = abap_false.
+      CONTINUE.
+    ENDIF.
+
+    " If not released: warning, if released, error
+    IF ls_header-ftrmi IS INITIAL.
+      lv_msgty = 'W'.
+    ELSE.
+      lv_msgty = 'E'.
+    ENDIF.
+
+    CALL FUNCTION 'C14Z_MESSAGES_SHOW_AS_POPUP'
+      EXPORTING
+        i_msgid = 'ZMM_COI_MSG'
+        i_msgty = lv_msgty
+        i_msgno = '015'.
+
+  ENDLOOP.
+
+ENDFUNCTION.

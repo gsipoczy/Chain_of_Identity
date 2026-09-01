@@ -1,0 +1,100 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMR_CHAIN_OF_IDENTITY_CLI
+*&---------------------------------------------------------------------*
+CLASS lcl_events IMPLEMENTATION.
+  METHOD hotspot_click.
+
+    CONSTANTS: lc_charg TYPE lvc_fname VALUE 'CHARG'.
+
+    FIELD-SYMBOLS: <lfs_alv> TYPE ts_alv.
+
+    READ TABLE gt_alv ASSIGNING <lfs_alv> INDEX es_row_no-row_id.
+    CHECK sy-subrc = 0 AND <lfs_alv> IS ASSIGNED.
+
+    CASE e_column_id-fieldname.
+      WHEN lc_charg.
+        IF NOT <lfs_alv>-matnr IS INITIAL
+          AND NOT <lfs_alv>-charg IS INITIAL.
+          SET PARAMETER ID 'MAT' FIELD <lfs_alv>-matnr.
+          SET PARAMETER ID 'CHA' FIELD <lfs_alv>-charg.
+          CALL TRANSACTION 'MSC3N' AND SKIP FIRST SCREEN.
+        ENDIF.
+    ENDCASE.
+
+  ENDMETHOD.
+
+  METHOD data_changed.
+  ENDMETHOD.
+  METHOD before_user_command.
+
+*    DATA: lt_index_rows TYPE lvc_t_row,
+*          lt_row_no     TYPE lvc_t_roid.
+*
+*    IF e_ucomm = 'REFR'.
+*      CLEAR gt_nast[].
+*      PERFORM get_data.
+*      CALL METHOD go_alv1->refresh_table_display.
+*    ENDIF.
+*
+*    IF e_ucomm = 'POST'.
+*      CALL METHOD go_alv1->get_selected_rows
+*        IMPORTING
+*          et_index_rows = lt_index_rows
+*          et_row_no     = lt_row_no.
+*      PERFORM prepare_for_fg_posting USING lt_row_no.
+*      PERFORM post.
+*      CALL METHOD go_alv1->refresh_table_display.
+*    ENDIF.
+*
+*    IF e_ucomm = 'SELA'.
+*      PERFORM select_all.
+*    ENDIF.
+*
+*    IF e_ucomm = 'DESA'.
+*      PERFORM deselect_all.
+*    ENDIF.
+
+  ENDMETHOD.
+  METHOD user_command.
+  ENDMETHOD.
+  METHOD after_user_command.
+  ENDMETHOD.
+  METHOD menu_button.
+  ENDMETHOD.
+  METHOD toolbar.
+
+*    DATA: ls_toolbar TYPE stb_button.
+*
+*    CLEAR ls_toolbar.
+*    ls_toolbar-function = 'SELA'.
+*    ls_toolbar-icon = gc_icon_select_all.
+*    ls_toolbar-quickinfo = 'Select all'(024).
+*    APPEND ls_toolbar TO e_object->mt_toolbar.
+*
+*    CLEAR ls_toolbar.
+*    ls_toolbar-function = 'DESA'.
+*    ls_toolbar-icon = gc_icon_deselect_all.
+*    ls_toolbar-quickinfo = 'Deselect all'(025).
+*    APPEND ls_toolbar TO e_object->mt_toolbar.
+*
+*    CLEAR ls_toolbar.
+*    ls_toolbar-function = 'POST'.
+*    ls_toolbar-text = 'Delete Block Y2'(014).
+*    ls_toolbar-quickinfo = 'Delete Block Y2'(014).
+*    APPEND ls_toolbar TO e_object->mt_toolbar.
+*
+*    CLEAR ls_toolbar.
+*    ls_toolbar-function = 'REFR'.
+*    ls_toolbar-icon = gc_icon_refresh.
+*    ls_toolbar-quickinfo = 'Refresh'(013).
+*    APPEND ls_toolbar TO e_object->mt_toolbar.
+
+  ENDMETHOD.
+  METHOD after_refresh.
+  ENDMETHOD.
+  METHOD button_click.
+  ENDMETHOD.
+  METHOD data_changed_finished.
+  ENDMETHOD.
+
+ENDCLASS.

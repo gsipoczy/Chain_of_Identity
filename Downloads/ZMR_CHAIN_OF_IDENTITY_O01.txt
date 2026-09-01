@@ -1,0 +1,62 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZMR_CHAIN_OF_IDENTITY_O01.
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_2000  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_2000 OUTPUT.
+
+  DATA : lt_fun_ex TYPE ui_functions,
+         ls_stable TYPE lvc_s_stbl.
+
+  SET PF-STATUS 'STATUS_2000'.
+  SET TITLEBAR 'TITLE_2000'.
+
+  IF go_alv1 IS NOT INITIAL.
+    ls_stable-col = abap_true.
+    ls_stable-row = abap_true.
+    go_alv1->refresh_table_display( EXPORTING is_stable = ls_stable ) .
+  ELSE.
+    IF go_cont1 IS INITIAL.
+      CREATE OBJECT go_cont1
+        EXPORTING
+          container_name = 'GV_CONTAINER'.
+      IF sy-subrc <> 0.
+        EXIT.
+      ENDIF.
+
+      CREATE OBJECT go_alv1
+        EXPORTING
+          i_parent = go_cont1.
+      IF sy-subrc <> 0.
+        EXIT.
+      ENDIF.
+    ENDIF.
+
+    PERFORM alv_fieldcat.
+    PERFORM alv_layout.
+    PERFORM alv_events.
+    PERFORM alv_exclude CHANGING lt_fun_ex.
+
+    gs_variant-report = sy-cprog.
+    gs_variant-username = sy-uname.
+
+    CALL METHOD go_alv1->set_table_for_first_display
+      EXPORTING
+        it_toolbar_excluding = lt_fun_ex
+        is_layout            = gs_layout
+        i_save               = 'A'
+        is_variant           = gs_variant
+      CHANGING
+        it_outtab            = gt_alv
+        it_fieldcatalog      = gt_fieldcat.
+    IF sy-subrc <> 0.
+    ENDIF.
+
+    CALL METHOD go_alv1->set_toolbar_interactive.
+
+  ENDIF.
+
+ENDMODULE.

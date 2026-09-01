@@ -1,0 +1,363 @@
+class ZCL_MM_COI3WC_CONFIG definition
+  public
+  final
+  create public .
+
+public section.
+
+  class-methods GET_CONFIGURATION
+    importing
+      !IV_MATNR type MATNR
+    exporting
+      !ET_CONFIGURATION type ZMM_COI3WC_CONF_SCREEN_TT
+      !EV_ERROR type XFELD .
+protected section.
+private section.
+
+  constants TEXT_TITLE_SCREEN_A type TEXT100 value 'A: Institutional Bag Label' ##NO_TEXT.
+  constants TEXT_TITLE_SCREEN_B type TEXT100 value 'B: Biospecimen Data Form' ##NO_TEXT.
+  constants TEXT_TITLE_SCREEN_C type TEXT100 value 'C: Hang Tag Label' ##NO_TEXT.
+ENDCLASS.
+
+
+
+CLASS ZCL_MM_COI3WC_CONFIG IMPLEMENTATION.
+
+
+* <SIGNATURE>---------------------------------------------------------------------------------------+
+* | Static Public Method ZCL_MM_COI3WC_CONFIG=>GET_CONFIGURATION
+* +-------------------------------------------------------------------------------------------------+
+* | [--->] IV_MATNR                       TYPE        MATNR
+* | [<---] ET_CONFIGURATION               TYPE        ZMM_COI3WC_CONF_SCREEN_TT
+* | [<---] EV_ERROR                       TYPE        XFELD
+* +--------------------------------------------------------------------------------------</SIGNATURE>
+  METHOD get_configuration.
+
+    "****************************************************
+    " Now this is the fix configuration, has to be changed
+    " if flexi solution needed
+    "****************************************************
+
+    DATA: lt_conf   TYPE zmm_coi3wc_conf_screen_tt,
+          ls_screen TYPE zmm_coi3wc_conf_screen_st,
+          lt_fields TYPE zmm_coi3wc_conf_scfield_tt,
+          ls_field  TYPE zmm_coi3wc_conf_scfield_st,
+          lt_param  TYPE zmm_coi_activation_params_tt.
+
+    DATA: lv_mtart           TYPE mtart,
+          lv_hazardous_class TYPE atwrt,
+          lv_screen_a        TYPE atwrt,
+          lv_screen_b        TYPE atwrt,
+          lv_screen_c        TYPE atwrt.
+
+    " Get the material info - actually to see which screen is wanted
+    CALL METHOD zcl_mm_coi_utility=>get_material_information
+      EXPORTING
+        iv_matnr           = iv_matnr
+      IMPORTING
+        ev_mtart           = lv_mtart
+        ev_hazardous_class = lv_hazardous_class
+        ev_screen_a        = lv_screen_a
+        ev_screen_b        = lv_screen_b
+        ev_screen_c        = lv_screen_c.
+
+    " Get ZMM_PARAM configuration
+    CALL METHOD zcl_mm_coi_utility=>read_zmm_param
+      EXPORTING
+        iv_matnr = iv_matnr
+      IMPORTING
+        et_param = lt_param.
+
+    " Check that material config OK (this is only valid for the fix setup)
+    IF ( lv_screen_a <> zcl_mm_coi_utility=>zfs_fixval_atwrt_yes
+      AND lv_screen_a <> zcl_mm_coi_utility=>zfs_fixval_atwrt_no ) OR
+      ( lv_screen_b <> zcl_mm_coi_utility=>zfs_fixval_atwrt_yes
+      AND lv_screen_b <> zcl_mm_coi_utility=>zfs_fixval_atwrt_no ) OR
+      ( lv_screen_c <> zcl_mm_coi_utility=>zfs_fixval_atwrt_yes
+      AND lv_screen_c <> zcl_mm_coi_utility=>zfs_fixval_atwrt_no ).
+      ev_error = abap_true.
+      EXIT.
+    ENDIF.
+
+    " Screen 1
+    IF lv_screen_a = zcl_mm_coi_utility=>zfs_fixval_atwrt_yes.
+      CLEAR ls_screen.
+      ls_screen-ord = '01'.
+      ls_screen-popup_title = text_title_screen_a.
+
+      " Fields
+      CLEAR ls_field.
+      ls_field-ord = '01'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_patid.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_patient_id
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_false.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_patid_a.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '02'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_coi.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_coi
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_true.
+      ls_field-is_coi = abap_true.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_coi_a.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '03'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_din.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_din
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_true.
+      ls_field-is_din = abap_true.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_din_a.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '04'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_bagid.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_bag_id
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_false.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_bagid_a.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '05'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_collc.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_coll_center
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_false.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_collc_a.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      APPEND ls_screen TO lt_conf.
+    ENDIF. " END of SCREEN 1
+
+    " Screen 2
+    IF lv_screen_b = zcl_mm_coi_utility=>zfs_fixval_atwrt_yes.
+      CLEAR ls_screen.
+      ls_screen-ord = '02'.
+      ls_screen-popup_title = text_title_screen_b.
+
+      " Fields
+      CLEAR ls_field.
+      ls_field-ord = '01'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_patid.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_patient_id
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_false.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_patid_b.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '02'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_coi.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_coi
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_true.
+      ls_field-is_coi = abap_true.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_coi_b.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '03'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_din.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_din
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_true.
+      ls_field-is_din = abap_true.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_din_b.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '04'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_bagid.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_bag_id
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_false.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_bagid_b.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '05'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_collc.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_coll_center
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_false.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_collc_b.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      APPEND ls_screen TO lt_conf.
+    ENDIF. " END of SCREEN 2
+
+    " Screen 3
+    IF lv_screen_c = zcl_mm_coi_utility=>zfs_fixval_atwrt_yes.
+      CLEAR ls_screen.
+      ls_screen-ord = '03'.
+      ls_screen-popup_title = text_title_screen_c.
+
+      " Fields
+      CLEAR ls_field.
+      ls_field-ord = '01'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_patid.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_patient_id
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_false.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_patid_c.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '02'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_coi.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_coi
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_true.
+      ls_field-is_coi = abap_true.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_coi_c.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '03'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_din.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_din
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_true.
+      ls_field-is_din = abap_true.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_din_c.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '04'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_bagid.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_bag_id
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_false.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_bagid_c.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      CLEAR ls_field.
+      ls_field-ord = '05'.
+      ls_field-tabname = zcl_mm_coi_utility=>screen_table.
+      ls_field-fieldname = zcl_mm_coi_utility=>screenfield_input.
+      ls_field-fieldtext = zcl_mm_coi_utility=>zfs_fieldname_collc.
+      CALL METHOD zcl_mm_coi_utility=>zfs_decide_field_obligatory
+        EXPORTING
+          iv_field     = zcl_mm_coi_utility=>zfs_freekey_field_coll_center
+          it_param     = lt_param
+        IMPORTING
+          ev_field_obl = ls_field-field_obl.
+      ls_field-checksum = abap_false.
+      ls_field-atnam = zcl_mm_coi_utility=>zfs_atnam_collc_c.
+      ls_field-value = space.
+      APPEND ls_field TO ls_screen-fields.
+
+      APPEND ls_screen TO lt_conf.
+    ENDIF. " END of SCREEN 2
+
+    " Return result
+    ev_error = abap_false.
+    et_configuration = lt_conf.
+
+  ENDMETHOD.
+ENDCLASS.

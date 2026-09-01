@@ -1,0 +1,23 @@
+*&---------------------------------------------------------------------*
+*& Title          : COI check at Process Order Save                    *
+*& Create Date    : 06-DEC-2022                                        *
+*& Author         : Gabor Sipoczy                                      *
+*&---------------------------------------------------------------------*
+*& Description    : User exit at save Process Order.                   *
+*&---------------------------------------------------------------------*
+*& C H A N G E  H I S T O R Y                                          *
+*&---------------------------------------------------------------------*
+*& Date         | User ID   | Description                |Change Label *
+*&---------------------------------------------------------------------*
+*& 06-DEC-2022  ¦ GSIPOCZY  ¦ Initial                    ¦ N/A         *
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&  Include  ZPP_COIPO_ZXCO1U01
+*&---------------------------------------------------------------------*
+
+  CALL FUNCTION 'ZPP_COI_EXIT_SAPLCOBT_001'
+    TABLES
+      header_table     = header_table
+      position_table   = position_table
+      status_table     = status_table
+      status_table_old = status_table_old.

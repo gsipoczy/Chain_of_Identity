@@ -1,0 +1,39 @@
+***********************************************************************
+* PROGRAM DECLARATION
+***********************************************************************
+* PROGRAM ID:         ZMR_CHAIN_OF_IDENTITY
+* AUTHOR Name:        GSIPOCZY
+* CREATE DATE:        07-DEC-2022
+* ECC RELEASE VERSION 7.40
+* BASED-ON PROGRAM:   N/A
+* DESCRIPTION :       Chain of Identity Report
+***********************************************************************
+* VERSION CONTROL (Most recent on top):
+* DATE        AUTHOR       CTS      REQ        DESCRIPTION
+*----------------------------------------------------------------------
+* 07-DEC-2022 GSIPOCZY     D10K9A72J7          Initial
+***********************************************************************
+REPORT zmr_chain_of_identity.
+INCLUDE zmr_chain_of_identity_cls.
+INCLUDE zmr_chain_of_identity_top.
+INCLUDE zmr_chain_of_identity_cli.
+INCLUDE zmr_chain_of_identity_sel.
+
+AT SELECTION-SCREEN.
+  PERFORM check_selections.
+
+START-OF-SELECTION.
+  PERFORM get_data.
+
+  IF NOT gt_alv[] IS INITIAL.
+    CALL SCREEN 2000.
+  ELSE.
+    MESSAGE 'No Records avaible for the selection'(001) TYPE 'S' DISPLAY LIKE 'E'.
+    LEAVE LIST-PROCESSING.
+  ENDIF.
+
+  INCLUDE zmr_chain_of_identity_f01.
+
+  INCLUDE zmr_chain_of_identity_o01.
+
+  INCLUDE zmr_chain_of_identity_i01.

@@ -1,0 +1,11 @@
+SAPML03T ML03TF00_STRATEGIEN
+FORM STRATEGIEN
+IF t333-abild EQ con_abild_2.
+    PERFORM badi_wm_enhancement_dec_update
+	LTAK-BENUM = aufnr
+	LTAP-MATNR, WERKS, CHARG
+---> NO, because only for Check for cross dock or value added activation
+
+-------------------------------------------------
+
+

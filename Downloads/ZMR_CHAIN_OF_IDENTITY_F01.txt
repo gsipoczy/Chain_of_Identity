@@ -1,0 +1,1022 @@
+*----------------------------------------------------------------------*
+***INCLUDE ZMR_CHAIN_OF_IDENTITY_F01.
+*----------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&      Form  GET_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_data .
+
+  TYPES: BEGIN OF lts_coikey,
+           coi TYPE zpp_coi,
+         END OF lts_coikey,
+         ltt_coikey TYPE SORTED TABLE OF lts_coikey
+                   WITH UNIQUE KEY coi.
+
+  DATA: lv_count  TYPE i,
+        lt_coikey TYPE ltt_coikey,
+        ls_coikey TYPE lts_coikey.
+
+  FIELD-SYMBOLS: <lfs_coikey> TYPE lts_coikey,
+                 <lfs_coi>    TYPE zpp_coi_index.
+
+  PERFORM get_globals.
+
+  " Get the list of COI based on the selection
+  PERFORM get_coi_list.
+  " If no COI selected, no display.
+  IF gt_coi[] IS INITIAL.
+    EXIT.
+  ENDIF.
+  DESCRIBE TABLE gt_coi LINES lv_count.
+  IF lv_count > 10000.
+    MESSAGE 'Too many Chain of Identity IDs selected.'(015) TYPE 'E' DISPLAY LIKE 'E'.
+  ENDIF.
+
+  " Do data selection one by one per COI
+  LOOP AT gt_coi ASSIGNING <lfs_coi>.
+    ls_coikey-coi = <lfs_coi>-coi.
+    INSERT ls_coikey INTO TABLE lt_coikey.
+  ENDLOOP.
+
+  LOOP AT lt_coikey ASSIGNING <lfs_coikey>.
+    PERFORM get_one_coi_data USING <lfs_coikey>-coi.
+  ENDLOOP.
+
+  " Final
+  SORT gt_alv BY coi ASCENDING
+  matnr ASCENDING
+  charg ASCENDING
+  aufnr ASCENDING
+  vbeln ASCENDING
+  vbell ASCENDING.
+  DELETE ADJACENT DUPLICATES FROM gt_alv
+  COMPARING coi matnr charg aufnr vbeln vbell.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  ALV_FIELDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM alv_fieldcat .
+
+  CLEAR: gt_fieldcat[].
+
+  " BATCH
+  PERFORM addcol USING 'COI' 30 'ZPP_COI' 'Chain of Identity'(002)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'MATNR' 18 'MATNR' 'Material'(006)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'CHARG' 10 'CHARG_D' 'Batch'(007)
+  gc_nokey gc_noexit gc_noicon gc_hotspot.
+  PERFORM addcol USING 'DIN' 30 'ZPP_DIN' 'DIN ID'(012)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+
+  " STOCK
+  PERFORM addcol USING 'PRLAB' 18 'LABST' 'Unrestricted Stock'(020)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'PRINS' 18 'INSME' 'QA Stock'(021)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'PRSPE' 18 'SPEME' 'Blocked Stock'(022)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'PREIN' 18 'EINME' 'Tot.Restr. Stock'(023)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'MEINS' 18 'MEINS' 'UOM'(024)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+
+  " PURCHASE ORDER
+  PERFORM addcol USING 'EBELN' 10 'EBELN' 'Purch.Ord.'(008)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'LIFNR' 10 'ELIFN' 'Vendor'(016)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'BLDAT' 10 'BLDAT' 'Doc. Date'(017)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+
+  " ISPECTION LOT
+  PERFORM addcol USING 'PRUEFLOS' 12 'QPLOS' 'Insp.Lot'(009)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+
+  " PROCESS ORDER
+  PERFORM addcol USING 'AUFNR' 12 'AUFNR' 'Order'(004)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'ISTAT' 30 'TEXT100' 'PrO Status'(025)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'ESTAT' 30 'TEXT100' 'PrO User Status'(026)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+
+  " SALES ORDER
+  PERFORM addcol USING 'VBELN' 10 'VBELN_VA' 'Sales Ord.'(010)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'GBSTK' 1 'GBSTK' 'SO Stat.'(027)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+
+  " DELIVERY
+  PERFORM addcol USING 'VBELL' 10 'VBELN_VL' 'Delivery'(011)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'GBSTL' 1 'GBSTK' 'OD Stat.'(028)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'LFDAT' 10 'LFDAT_V' 'Del.Date'(018)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'KUNWE' 30 'KUNWE' 'Ship-to'(013)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+  PERFORM addcol USING 'KUNAG' 30 'KUNAG' 'Sold-to'(019)
+  gc_nokey gc_noexit gc_noicon gc_nohotspot.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  ADDCOL
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_0022   text
+*      -->P_30     text
+*      -->P_0024   text
+*      -->P_0025   text
+*      -->P_GC_NOKEY  text
+*      -->P_GC_NOEXIT  text
+*      -->P_GC_NOICON  text
+*      -->P_GC_NOHOTSPOT  text
+*----------------------------------------------------------------------*
+FORM addcol  USING   VALUE(iv_fieldname)
+                      VALUE(iv_outputlen)
+                      VALUE(iv_rollname)
+                      VALUE(iv_coltext)
+                      iv_key
+                      iv_convexit
+                      iv_icon
+                      iv_hotspot.
+
+  DATA: ls_fieldcat TYPE lvc_s_fcat.
+
+  CLEAR ls_fieldcat.
+  ls_fieldcat-fieldname = iv_fieldname.
+  ls_fieldcat-outputlen = iv_outputlen.
+  ls_fieldcat-rollname = iv_rollname.
+  ls_fieldcat-coltext = iv_coltext.
+  ls_fieldcat-scrtext_l = iv_coltext.
+  ls_fieldcat-scrtext_m = iv_coltext.
+  ls_fieldcat-scrtext_s = iv_coltext.
+  ls_fieldcat-seltext = iv_coltext.
+  ls_fieldcat-key = iv_key.
+  ls_fieldcat-convexit = iv_convexit.
+  ls_fieldcat-no_out = space.
+  ls_fieldcat-icon = iv_icon.
+  ls_fieldcat-hotspot = iv_hotspot.
+  APPEND ls_fieldcat TO gt_fieldcat.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  ALV_LAYOUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM alv_layout .
+
+  gs_layout-zebra = abap_true.
+  gs_layout-cwidth_opt = abap_true.
+  gs_layout-col_opt    = abap_true.
+  gs_layout-grid_title = 'Chain of Identity Report'(003).
+  gs_layout-sel_mode = 'A'.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  ALV_EVENTS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM alv_events .
+
+  CREATE OBJECT gr_events.
+
+  SET HANDLER gr_events->hotspot_click FOR go_alv1.
+  SET HANDLER gr_events->data_changed FOR go_alv1.
+  SET HANDLER gr_events->before_user_command FOR go_alv1.
+  SET HANDLER gr_events->user_command FOR go_alv1.
+  SET HANDLER gr_events->after_user_command FOR go_alv1.
+  SET HANDLER gr_events->menu_button FOR go_alv1.
+  SET HANDLER gr_events->toolbar FOR go_alv1.
+  SET HANDLER gr_events->after_refresh FOR go_alv1.
+  SET HANDLER gr_events->button_click FOR go_alv1.
+  SET HANDLER gr_events->data_changed_finished FOR go_alv1.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  ALV_EXCLUDE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_LT_FUN_EX  text
+*----------------------------------------------------------------------*
+FORM alv_exclude  CHANGING lt_ex TYPE ui_functions.
+
+  "APPEND INITIAL LINE TO lt_ex ASSIGNING FIELD-SYMBOL(<ls_fun_ex>).
+  "<ls_fun_ex> = '&REFRESH'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING FIELD-SYMBOL(<ls_fun_ex>).
+  <ls_fun_ex> = '&CHECK'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&LOCAL&CUT'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&LOCAL&PASTE_NEW_ROW'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&LOCAL&COPY'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&LOCAL&PASTE'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&LOCAL&UNDO'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&LOCAL&APPEND'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&LOCAL&INSERT_ROW'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&LOCAL&DELETE_ROW'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&LOCAL&COPY_ROW'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&MB_SUM'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&MB_SUBTOT'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&GRAPH'.
+  APPEND INITIAL LINE TO lt_ex ASSIGNING <ls_fun_ex>.
+  <ls_fun_ex> = '&INFO'.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_COI_LIST
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_LT_COI  text
+*----------------------------------------------------------------------*
+FORM get_coi_list.
+
+  " Select from ZMM_BATCH_COIDIN
+  CLEAR gt_coi.
+  SELECT *
+    INTO TABLE gt_coi
+    FROM zpp_coi_index
+    WHERE coi IN s_coi.
+
+  " Remove duplicates
+  SORT gt_coi.
+  DELETE ADJACENT DUPLICATES FROM gt_coi.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  CHECK_SELECTIONS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM check_selections .
+
+  IF s_coi IS INITIAL AND
+    s_matnr IS INITIAL AND
+    s_charg IS INITIAL.
+    MESSAGE 'Please refine your search criteria'(014) TYPE 'E' DISPLAY LIKE 'E'.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_ONE_COI_DATA
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_COI>_COI  text
+*----------------------------------------------------------------------*
+FORM get_one_coi_data  USING lv_coi TYPE zpp_coi.
+
+  DATA: ls_alv_component TYPE ts_alv,
+        ls_alv_procomp   TYPE ts_alv,
+        ls_alv_profert   TYPE ts_alv,
+        ls_alv_so        TYPE ts_alv,
+        ls_alv_od        TYPE ts_alv,
+        ls_alv           TYPE ts_alv,
+        lv_mtart         TYPE mtart,
+        lv_prueflos      TYPE qplos,
+        lv_werks         TYPE werks_d,
+        ls_mspr          TYPE ts_mspr,
+        lv_istat         TYPE text100,
+        lv_estat         TYPE text100,
+        lt_likp          TYPE tt_likp,
+        ls_batchinfo     TYPE ts_batchinfo,
+        lv_record_type   TYPE char1.
+
+  DATA: lt_coi_gr_purord  TYPE tt_coi,
+        lt_coi_gi_procord TYPE tt_coi,
+        lt_coi_gr_procord TYPE tt_coi,
+        lt_coi_procord    TYPE tt_coi,
+        lt_coi_salesord   TYPE tt_coi,
+        lt_coi_so_item    TYPE tt_coi.
+
+  FIELD-SYMBOLS: <lfs_coi_grpu> TYPE zpp_coi_index,
+                 <lfs_coi_gipo> TYPE zpp_coi_index,
+                 <lfs_coi_grpo> TYPE zpp_coi_index,
+                 <lfs_coi_po>   TYPE zpp_coi_index,
+                 <lfs_coi_so>   TYPE zpp_coi_index,
+                 <lfs_coi_soit> TYPE zpp_coi_index.
+
+  FIELD-SYMBOLS: <lfs_likp> TYPE ts_likp,
+                 <lfs_coi>  TYPE zpp_coi_index.
+
+  LOOP AT gt_coi ASSIGNING <lfs_coi> WHERE coi = lv_coi.
+
+    " Get the record type
+    PERFORM get_record_type USING <lfs_coi>
+          CHANGING lv_record_type.
+    IF lv_record_type IS INITIAL.
+      CONTINUE.
+    ENDIF.
+
+    CASE lv_record_type.
+      WHEN gc_rt_gr_purord. APPEND <lfs_coi> TO lt_coi_gr_purord.
+      WHEN gc_rt_gi_procord. APPEND <lfs_coi> TO lt_coi_gi_procord.
+      WHEN gc_rt_gr_procord. APPEND <lfs_coi> TO lt_coi_gr_procord.
+      WHEN gc_rt_procord. APPEND <lfs_coi> TO lt_coi_procord.
+      WHEN gc_rt_salesord. APPEND <lfs_coi> TO lt_coi_salesord.
+      WHEN gc_rt_so_item. APPEND <lfs_coi> TO lt_coi_so_item.
+    ENDCASE.
+
+  ENDLOOP.
+
+  " Main loop: GR for Purchase Order
+  LOOP AT lt_coi_gr_purord ASSIGNING <lfs_coi_grpu>.
+
+    " Check the batch
+    ls_batchinfo-matnr = <lfs_coi_grpu>-matnr.
+    ls_batchinfo-charg = <lfs_coi_grpu>-charg.
+    IF NOT ls_batchinfo-matnr IN s_matnr
+      OR NOT ls_batchinfo-charg IN s_charg.
+      CONTINUE.
+    ENDIF.
+    PERFORM get_batch_data CHANGING ls_batchinfo ls_mspr.
+    IF ls_batchinfo-coi <> <lfs_coi_grpu>-coi.
+      CONTINUE.
+    ENDIF.
+
+    " Check component material type
+    PERFORM get_material_type USING <lfs_coi_grpu>-matnr
+          CHANGING lv_mtart.
+    IF lv_mtart IS INITIAL OR NOT lv_mtart IN s_mtarc.
+      CONTINUE.
+    ENDIF.
+
+    " Check purchase order
+    IF NOT <lfs_coi_grpu>-ebeln IN s_ebeln.
+      CONTINUE.
+    ENDIF.
+
+    " Inspection lot
+    PERFORM get_inspection_lot USING <lfs_coi_grpu>-matnr <lfs_coi_grpu>-charg
+        CHANGING lv_prueflos.
+    IF NOT lv_prueflos IN s_pruef.
+      CONTINUE.
+    ENDIF.
+
+    " Create Component Line
+    CLEAR ls_alv_component.
+    MOVE-CORRESPONDING <lfs_coi_grpu> TO ls_alv_component.
+    MOVE-CORRESPONDING ls_mspr TO ls_alv_component.
+    MOVE-CORRESPONDING ls_batchinfo TO ls_alv_component.
+    ls_alv_component-prueflos = lv_prueflos.
+
+    " Check that have corresponding consumption
+    LOOP AT lt_coi_gi_procord ASSIGNING <lfs_coi_gipo>
+      WHERE matnr = <lfs_coi_grpu>-matnr
+        AND charg = <lfs_coi_grpu>-charg.
+      EXIT.
+    ENDLOOP.
+    IF sy-subrc <> 0.
+      APPEND ls_alv_component TO gt_alv.
+      CONTINUE.
+    ENDIF.
+
+    " Consumption
+    LOOP AT lt_coi_gi_procord ASSIGNING <lfs_coi_gipo>
+      WHERE matnr = <lfs_coi_grpu>-matnr
+        AND charg = <lfs_coi_grpu>-charg.
+
+      DELETE lt_coi_procord WHERE aufnr = <lfs_coi_gipo>-aufnr.
+
+      IF NOT <lfs_coi_gipo>-aufnr IN s_aufnr.
+        CONTINUE.
+      ENDIF.
+
+      PERFORM get_prod_plant USING <lfs_coi_gipo>-aufnr
+          CHANGING lv_werks.
+      IF NOT lv_werks IN s_werks.
+        CONTINUE.
+      ENDIF.
+
+      " Now we need to create a separate ALV line for every Process Order
+      CLEAR ls_alv_procomp.
+      MOVE-CORRESPONDING ls_alv_component TO ls_alv_procomp.
+      ls_alv_procomp-aufnr = <lfs_coi_gipo>-aufnr.
+      PERFORM get_procord_status USING <lfs_coi_gipo>-aufnr
+            CHANGING lv_istat lv_estat.
+      ls_alv_procomp-istat = lv_istat.
+      ls_alv_procomp-estat = lv_estat.
+      APPEND ls_alv_procomp TO gt_alv.
+
+      " And now move to FERT...
+      LOOP AT lt_coi_gr_procord ASSIGNING <lfs_coi_grpo>
+        WHERE aufnr = <lfs_coi_gipo>-aufnr.
+
+        CLEAR ls_batchinfo.
+        ls_batchinfo-matnr = <lfs_coi_grpo>-matnr.
+        ls_batchinfo-charg = <lfs_coi_grpo>-charg.
+        PERFORM get_batch_data CHANGING ls_batchinfo ls_mspr.
+        " If the actual COI is different, we do not need (should not happen)
+        IF ls_batchinfo-coi <> <lfs_coi_grpo>-coi.
+          CONTINUE.
+        ENDIF.
+
+        PERFORM get_material_type USING  <lfs_coi_grpo>-matnr
+             CHANGING lv_mtart.
+        IF NOT lv_mtart IN s_mtarf.
+          CONTINUE.
+        ENDIF.
+
+        PERFORM get_inspection_lot USING <lfs_coi_grpo>-matnr <lfs_coi_grpo>-charg
+        CHANGING lv_prueflos.
+
+        " Prepare FERT line
+        CLEAR ls_alv_profert.
+        MOVE-CORRESPONDING <lfs_coi_grpo> TO ls_alv_profert.
+        MOVE-CORRESPONDING ls_mspr TO ls_alv_profert.
+        MOVE-CORRESPONDING ls_batchinfo TO ls_alv_profert.
+        ls_alv_profert-istat = lv_istat.
+        ls_alv_profert-estat = lv_estat.
+        ls_alv_profert-prueflos = lv_prueflos.
+
+        " Check that have corresponding sales order
+        LOOP AT lt_coi_so_item ASSIGNING <lfs_coi_soit>
+          WHERE matnr = <lfs_coi_grpo>-matnr
+            AND charg = <lfs_coi_grpo>-charg.
+          EXIT.
+        ENDLOOP.
+        IF sy-subrc <> 0.
+          APPEND ls_alv_profert TO gt_alv.
+          CONTINUE.
+        ENDIF.
+
+        " Sales orders
+        LOOP AT lt_coi_so_item ASSIGNING <lfs_coi_soit>
+          WHERE matnr = <lfs_coi_grpo>-matnr
+            AND charg = <lfs_coi_grpo>-charg.
+
+          CLEAR ls_alv_so.
+          MOVE-CORRESPONDING ls_alv_profert TO ls_alv_so.
+          ls_alv_so-vbeln = <lfs_coi_soit>-vbeln.
+          DELETE lt_coi_salesord WHERE vbeln = <lfs_coi_soit>-vbeln.
+          PERFORM get_sood_status USING <lfs_coi_soit>-vbeln
+                gc_vbtyp_so
+                CHANGING ls_alv_so-gbstk.
+
+          " Get deliveries
+          PERFORM get_deliveries USING <lfs_coi_soit>-vbeln
+                CHANGING lt_likp.
+          IF lt_likp IS INITIAL.
+            APPEND ls_alv_so TO gt_alv.
+          ELSE.
+            LOOP AT lt_likp ASSIGNING <lfs_likp>.
+
+              CLEAR ls_alv_od.
+              MOVE-CORRESPONDING ls_alv_so TO ls_alv_od.
+              ls_alv_so-vbell = <lfs_likp>-vbeln.
+              ls_alv_so-lfdat = <lfs_likp>-lfdat.
+              PERFORM get_sood_status USING <lfs_likp>-vbeln
+                gc_vbtyp_od
+                CHANGING ls_alv_od-gbstl.
+              ls_alv_so-kunwe = <lfs_likp>-kunnr.
+              ls_alv_so-kunag = <lfs_likp>-kunag.
+
+              APPEND ls_alv_od TO gt_alv.
+
+            ENDLOOP.
+          ENDIF.
+
+
+        ENDLOOP. " Sales order items
+
+      ENDLOOP. " On GR for Process Order
+
+    ENDLOOP. " On GI for Process Order
+
+  ENDLOOP. " On Goods Receipt for Purchase Order
+
+
+
+  " Handle remaining PrOs
+  LOOP AT lt_coi_procord ASSIGNING <lfs_coi_po>.
+    CLEAR ls_alv.
+
+    ls_alv-coi = <lfs_coi_po>-coi.
+    ls_alv-aufnr = <lfs_coi_po>-aufnr.
+    PERFORM get_procord_status USING <lfs_coi_po>-aufnr
+        CHANGING ls_alv-istat ls_alv-estat.
+    APPEND ls_alv TO gt_alv.
+  ENDLOOP.
+
+  " Handle remaining SOs
+  LOOP AT lt_coi_salesord ASSIGNING <lfs_coi_so>.
+
+    CLEAR ls_alv_so.
+    ls_alv_so-coi = <lfs_coi_so>-coi.
+    ls_alv_so-vbeln = <lfs_coi_so>-vbeln.
+    PERFORM get_sood_status USING <lfs_coi_so>-vbeln
+        gc_vbtyp_so
+        CHANGING ls_alv_so-gbstk.
+
+    APPEND ls_alv_so TO gt_alv.
+
+  ENDLOOP.
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_MATERIAL_TYPE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_LS_COI_MATNR  text
+*      <--P_LV_MTART  text
+*----------------------------------------------------------------------*
+FORM get_material_type  USING    lv_matnr TYPE matnr
+                        CHANGING lv_mtart TYPE mtart.
+
+  SELECT SINGLE mtart INTO lv_mtart
+    FROM mara
+    WHERE matnr = lv_matnr.
+  IF sy-subrc <> 0.
+    CLEAR lv_mtart.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_VENDOR
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_MSEG>_EBELN  text
+*      <--P_LV_LIFNR  text
+*----------------------------------------------------------------------*
+FORM get_vendor  USING    lv_ebeln TYPE ebeln
+                 CHANGING lv_lifnr TYPE elifn.
+
+  SELECT SINGLE lifnr INTO lv_lifnr
+    FROM ekko
+    WHERE ebeln = lv_ebeln.
+  IF sy-subrc <> 0.
+    CLEAR lv_lifnr.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_DOCDATE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_MSEG>_MBLNR  text
+*      -->P_<LFS_MSEG>_MJAHR  text
+*      <--P_LV_BLDAT  text
+*----------------------------------------------------------------------*
+FORM get_docdate  USING    lv_mblnr TYPE mblnr
+                           lv_mjahr TYPE mjahr
+                  CHANGING lv_bldat TYPE bldat.
+
+  SELECT SINGLE bldat INTO lv_bldat
+    FROM mkpf
+    WHERE mblnr = lv_mblnr
+    AND mjahr = lv_mjahr.
+  IF sy-subrc <> 0.
+    CLEAR lv_bldat.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_INSPECTION_LOT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_LS_COI_MATNR  text
+*      -->P_LS_COI_CHARG  text
+*      <--P_LV_PRUEFLOS  text
+*----------------------------------------------------------------------*
+FORM get_inspection_lot  USING    lv_matnr TYPE matnr
+                                  lv_charg TYPE charg_d
+                         CHANGING lv_prueflos TYPE qplos.
+
+  SELECT SINGLE prueflos INTO lv_prueflos
+    FROM qals
+    WHERE charg = lv_charg
+    AND matnr = lv_matnr
+    AND herkunft = gc_herkunft.
+  IF sy-subrc <> 0.
+    CLEAR lv_prueflos.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_MSEG_FOR_GRPROCORD
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_MSEG2>_AUFNR  text
+*      <--P_LT_MSEG_GRPROCORD  text
+*----------------------------------------------------------------------*
+FORM get_mseg_for_grprocord  USING    lv_aufnr TYPE aufnr
+                             CHANGING lt_mseg TYPE mb_mseg.
+
+  " Here we get all GR for Process Order
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_PROD_PLANT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_MSEG2>_AUFNR  text
+*      <--P_LV_WERKS  text
+*----------------------------------------------------------------------*
+FORM get_prod_plant  USING    lv_aufnr TYPE aufnr
+                     CHANGING lv_werks TYPE werks_d.
+
+  SELECT SINGLE werks INTO lv_werks
+    FROM aufk
+    WHERE aufnr = lv_aufnr.
+  IF sy-subrc <> 0.
+    CLEAR lv_werks.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_PROCORD_COI
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_MSEG3>_AUFNR  text
+*      <--P_LV_PROCORD_COI  text
+*----------------------------------------------------------------------*
+FORM get_procord_coi  USING    lv_aufnr TYPE aufnr
+                      CHANGING lv_coi TYPE zpp_coi.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_BATCH_CLASS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      <--P_LS_COI  text
+*----------------------------------------------------------------------*
+FORM get_batch_data  CHANGING ls_batchinfo TYPE ts_batchinfo
+                              ls_mspr TYPE ts_mspr.
+
+  DATA: ls_batch TYPE zsotc_batch,
+        ls_class TYPE zsotc_classification,
+        lt_mspr  TYPE TABLE OF ts_mspr,
+        lv_count TYPE i.
+
+  FIELD-SYMBOLS: <lfs_bc>   TYPE bapi1003_alloc_values_char,
+                 <lfs_mspr> TYPE ts_mspr.
+
+  " Batch data - Try from buffer
+  READ TABLE gt_batchinfo INTO ls_batchinfo
+  WITH KEY matnr = ls_batchinfo-matnr
+  charg = ls_batchinfo-charg.
+  IF sy-subrc <> 0.
+
+    " Batch data
+    CALL METHOD zcl_mm_coi_utility=>get_batch_information
+      EXPORTING
+        iv_matnr = ls_batchinfo-matnr
+        iv_charg = ls_batchinfo-charg
+      IMPORTING
+        ev_coi   = ls_batchinfo-coi
+        ev_din   = ls_batchinfo-din.
+
+    INSERT ls_batchinfo INTO TABLE gt_batchinfo.
+
+  ENDIF. " Handling of ls_coi
+
+  " MSPR - Try from buffer
+  " Additional tables if needed:
+  " MCHB - normal stock
+  " MCSD - customer stock
+  " MSKA - sales order stock
+  " MSKU - special stock with customer
+  " MSLB - special stock with vendor
+  " maybe can use also FM MG_BATCH_CHECK_MASTER
+  READ TABLE gt_mspr INTO ls_mspr
+  WITH KEY matnr = ls_batchinfo-matnr
+  charg = ls_batchinfo-charg.
+  IF sy-subrc <> 0.
+
+    CLEAR ls_mspr.
+    ls_mspr-matnr = ls_batchinfo-matnr.
+    ls_mspr-charg = ls_batchinfo-charg.
+
+    " Read project stock
+    SELECT matnr
+           charg
+           prlab
+           prins
+           prspe
+           prein
+           FROM mspr
+      INTO TABLE lt_mspr
+      WHERE matnr = ls_batchinfo-matnr
+      AND charg = ls_batchinfo-charg.
+    IF sy-subrc = 0 AND NOT lt_mspr IS INITIAL.
+
+      DESCRIBE TABLE lt_mspr LINES lv_count.
+      IF lv_count = 1.
+        UNASSIGN <lfs_mspr>.
+        READ TABLE lt_mspr ASSIGNING <lfs_mspr> INDEX 1.
+        IF sy-subrc = 0 AND <lfs_mspr> IS ASSIGNED.
+          MOVE-CORRESPONDING <lfs_mspr> TO ls_mspr.
+        ENDIF.
+      ELSE.
+        LOOP AT lt_mspr ASSIGNING <lfs_mspr>.
+          ls_mspr-prlab = ls_mspr-prlab + <lfs_mspr>-prlab.
+          ls_mspr-prins = ls_mspr-prins + <lfs_mspr>-prins.
+          ls_mspr-prspe = ls_mspr-prspe + <lfs_mspr>-prspe.
+          ls_mspr-prein = ls_mspr-prein + <lfs_mspr>-prein.
+        ENDLOOP.
+      ENDIF.
+
+      " Get meins
+      SELECT SINGLE meins INTO ls_mspr-meins
+        FROM mara
+        WHERE matnr = ls_batchinfo-matnr.
+
+    ENDIF. " Found something MSPR
+    " Buffer
+    INSERT ls_mspr INTO TABLE gt_mspr.
+
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_PROCORD_STATUS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_MSEG2>_AUFNR  text
+*      <--P_LS_ALV_PROCOMP_ISTAT  text
+*      <--P_LS_ALV_PROCOMP_ESTAT  text
+*----------------------------------------------------------------------*
+FORM get_procord_status  USING    lv_aufnr TYPE aufnr
+                         CHANGING lv_istat TYPE text100
+                                  lv_estat TYPE text100.
+
+  DATA: lv_objnr TYPE j_objnr,
+        lt_stat  TYPE TABLE OF jstat,
+        lv_text  TYPE j_txt04,
+        lv_stsma TYPE j_stsma.
+
+  FIELD-SYMBOLS: <lfs_stat> TYPE jstat.
+
+  CLEAR: lv_istat, lv_estat.
+
+  " Get actually the statuses
+  CONCATENATE 'OR' lv_aufnr INTO lv_objnr.
+  CALL FUNCTION 'STATUS_READ'
+    EXPORTING
+      objnr            = lv_objnr
+      only_active      = 'X'
+    TABLES
+      status           = lt_stat
+    EXCEPTIONS
+      object_not_found = 1
+      OTHERS           = 2.
+  IF sy-subrc <> 0.
+    EXIT.
+  ENDIF.
+
+  LOOP AT lt_stat ASSIGNING <lfs_stat>.
+
+    IF <lfs_stat>-stat+0(1) = 'I'.
+      SELECT SINGLE txt04 INTO lv_text
+        FROM tj02t
+        WHERE istat = <lfs_stat>-stat
+        AND spras = sy-langu.
+      IF sy-subrc = 0.
+        CONCATENATE lv_istat lv_text INTO lv_istat SEPARATED BY space.
+      ENDIF.
+    ENDIF.
+
+    IF <lfs_stat>-stat+0(1) = 'I'.
+      IF lv_stsma = space.
+        SELECT SINGLE t003o~stsma INTO lv_stsma
+          FROM aufk AS aufk JOIN t003o AS t003o
+          ON aufk~auart = t003o~auart
+          WHERE aufk~aufnr = lv_aufnr.
+        IF sy-subrc <> 0.
+          CLEAR lv_stsma.
+        ENDIF.
+      ENDIF.
+
+      IF lv_stsma <> space.
+        SELECT SINGLE txt04 INTO lv_text
+        FROM tj30t
+        WHERE stsma = lv_stsma
+        AND estat = <lfs_stat>-stat
+        AND spras = sy-langu.
+        IF sy-subrc = 0.
+          CONCATENATE lv_estat lv_text INTO lv_estat SEPARATED BY space.
+        ENDIF.
+      ENDIF.
+
+    ENDIF.
+
+  ENDLOOP.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_POSO_FOR_COI
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_LS_COI_COI  text
+*      <--P_LT_AUFK  text
+*      <--P_LT_VBAK  text
+*----------------------------------------------------------------------*
+FORM get_poso_for_coi  USING    lv_coi TYPE zm_coi_coi_field
+                       CHANGING lt_aufk TYPE tt_aufk
+                                lt_vbak TYPE tt_vbak.
+
+  CLEAR: lt_aufk, lt_vbak.
+
+  SELECT aufnr INTO TABLE lt_aufk
+    FROM aufk
+    WHERE zzcoi = lv_coi.
+
+  SELECT vbeln INTO TABLE lt_vbak
+    FROM vbak
+    WHERE zzcoi = lv_coi.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_SO_FOR_BATCH
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_MSEG3>_MATNR  text
+*      -->P_<LFS_MSEG3>_CHARG  text
+*      <--P_LT_VBAK_CHARG  text
+*----------------------------------------------------------------------*
+FORM get_so_for_batch  USING    lv_coi TYPE zm_coi_coi_field
+                                lv_matnr TYPE matnr
+                                lv_charg TYPE charg_d
+                       CHANGING lt_vbak TYPE tt_vbak.
+
+  CLEAR lt_vbak.
+
+  SELECT vbak~vbeln INTO TABLE lt_vbak
+    FROM vbap AS vbap JOIN vbak AS vbak
+    ON vbap~vbeln = vbak~vbeln
+    WHERE vbap~vbeln IN s_vbeln
+    AND vbap~matnr = lv_matnr
+    AND vbap~charg = lv_charg
+    AND vbak~kunnr IN s_kunag
+    AND vbak~zzcoi = lv_coi.
+  IF sy-subrc <> 0.
+    CLEAR lt_vbak.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_SOOD_STATUS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_VBAK>_VBELN  text
+*      -->P_GC_VBTYP_SO  text
+*      <--P_LS_ALV_SO_GBSTK  text
+*----------------------------------------------------------------------*
+FORM get_sood_status  USING    lv_vbeln
+                               lv_vbtyp
+                      CHANGING lv_gbstk.
+
+  CLEAR lv_gbstk.
+  SELECT SINGLE gbstk INTO lv_gbstk
+    FROM vbuk
+    WHERE vbeln = lv_vbeln
+    AND vbtyp = lv_vbtyp.
+  IF sy-subrc <> 0.
+    CLEAR lv_gbstk.
+  ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_DELIVERIES
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_VBAK>_VBELN  text
+*      <--P_LT_LIKP  text
+*----------------------------------------------------------------------*
+FORM get_deliveries  USING    lv_vbeln TYPE vbeln_va
+                     CHANGING lt_likp TYPE tt_likp.
+
+  CLEAR lt_likp.
+
+  SELECT DISTINCT likp~vbeln likp~lfdat likp~kunnr likp~kunag
+    INTO TABLE lt_likp
+    FROM vbfa AS vbfa JOIN likp AS likp
+    ON vbfa~vbeln = likp~vbeln
+    WHERE vbfa~vbelv = lv_vbeln
+    AND vbfa~vbtyp_n = gc_vbtyp_od
+    AND vbfa~vbtyp_v = gc_vbtyp_so
+    AND likp~kunnr IN s_kunwe
+    AND likp~kunag IN s_kunag.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_GLOBALS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM get_globals .
+
+  CALL METHOD zcl_mm_coi_utility=>get_bwart_ranges
+    IMPORTING
+      et_bwart_gr_purord  = gt_bwart_gr_purord
+      et_bwart_gi_procord = gt_bwart_gi_procord
+      et_bwart_gr_procord = gt_bwart_gr_procord.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  GET_RECORD_TYPE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_<LFS_COI>  text
+*      <--P_LV_RECORD_TYPE  text
+*----------------------------------------------------------------------*
+FORM get_record_type  USING    ls_coi TYPE zpp_coi_index
+                      CHANGING lv_rt TYPE char1.
+
+  CLEAR lv_rt.
+
+  " Material document
+  IF NOT ls_coi-mblnr IS INITIAL AND
+    NOT ls_coi-mjahr IS INITIAL AND
+    NOT ls_coi-zeile IS INITIAL AND
+    NOT ls_coi-matnr IS INITIAL AND
+    NOT ls_coi-charg IS INITIAL.
+
+    IF ls_coi-bwart IN gt_bwart_gr_purord AND NOT ls_coi-ebeln IS INITIAL.
+      lv_rt = gc_rt_gr_purord.
+      EXIT.
+    ENDIF.
+
+    IF ls_coi-bwart IN gt_bwart_gi_procord AND NOT ls_coi-aufnr IS INITIAL.
+      lv_rt = gc_rt_gi_procord.
+      EXIT.
+    ENDIF.
+
+    IF ls_coi-bwart IN gt_bwart_gr_procord AND NOT ls_coi-aufnr IS INITIAL.
+      lv_rt = gc_rt_gr_procord.
+      EXIT.
+    ENDIF.
+
+  ENDIF.
+
+  " Process order
+  IF NOT ls_coi-aufnr IS INITIAL.
+    lv_rt = gc_rt_procord.
+    EXIT.
+  ENDIF.
+
+  " Sales order item with batch
+  IF NOT ls_coi-vbeln IS INITIAL.
+    IF NOT ls_coi-matnr IS INITIAL
+    AND NOT ls_coi-charg IS INITIAL.
+      lv_rt = gc_rt_so_item.
+    ELSE.
+      lv_rt = gc_rt_salesord.
+    ENDIF.
+  ENDIF.
+
+ENDFORM.

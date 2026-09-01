@@ -1,0 +1,76 @@
+*&---------------------------------------------------------------------*
+*& Title          : COI 3-way check at Goods Receipt for Purchase Order*
+*& Create Date    : 05-DEC-2022                                        *
+*& Author         : Gabor Sipoczy                                      *
+*&---------------------------------------------------------------------*
+*& Description    : User exit at save in transaction MIGO.             *
+*&                  Popups for entering COI/DIN number and save into   *
+*&                  batch charactersitics                              *
+*&                                                                     *
+*&---------------------------------------------------------------------*
+*& C H A N G E  H I S T O R Y                                          *
+*&---------------------------------------------------------------------*
+*& Date         | User ID   | Description                |Change Label *
+*&---------------------------------------------------------------------*
+*& 05-DEC-2022  ¦ GSIPOCZY  ¦ Initial                    ¦ N/A         *
+*&---------------------------------------------------------------------*
+*& Include ZM_COI3WC_ZXMBCU04
+*&
+*&---------------------------------------------------------------------*
+
+  DATA: lo_zzzcoizzz_coi      TYPE REF TO zcl_mm_coi3wc_migo_save,
+        lt_zzzcoizzz_values   TYPE api_val_i_t,
+        ls_zzzcoizzz_bapiret2 TYPE bapiret2,
+        lv_zzzcoizzz_tabix    TYPE sytabix.
+
+  FIELD-SYMBOLS: <lfs_zzzcoizzz_values> TYPE api_val_i,
+                 <lfs_zzzcoizzz_value2> TYPE api_val_i.
+
+  TRY.
+      CREATE OBJECT lo_zzzcoizzz_coi.
+    CATCH cx_sy_create_object_error INTO DATA(oref).
+      EXIT.
+  ENDTRY.
+
+  CALL METHOD lo_zzzcoizzz_coi->execute
+    EXPORTING
+      is_mkpf     = i_mkpf
+      is_mseg     = i_mseg
+    IMPORTING
+      et_values   = lt_zzzcoizzz_values
+      es_bapiret2 = ls_zzzcoizzz_bapiret2.
+
+
+  " Fill the characteristics
+  LOOP AT lt_zzzcoizzz_values ASSIGNING <lfs_zzzcoizzz_value2>.
+    lv_zzzcoizzz_tabix = sy-tabix.
+
+    " Try if it is there already, then just update
+    UNASSIGN <lfs_zzzcoizzz_values>.
+    LOOP AT values ASSIGNING <lfs_zzzcoizzz_values> WHERE atnam = <lfs_zzzcoizzz_value2>-atnam.
+      EXIT.
+    ENDLOOP.
+    IF sy-subrc = 0 AND <lfs_zzzcoizzz_values> IS ASSIGNED.
+      <lfs_zzzcoizzz_values>-atwtb = <lfs_zzzcoizzz_value2>-atwtb.
+      DELETE lt_zzzcoizzz_values INDEX lv_zzzcoizzz_tabix.
+    ENDIF.
+
+  ENDLOOP.
+
+  " Add what remained
+  LOOP AT lt_zzzcoizzz_values ASSIGNING <lfs_zzzcoizzz_value2>.
+    APPEND <lfs_zzzcoizzz_value2> TO values.
+  ENDLOOP.
+
+  " If there was something message, issue it
+  IF ls_zzzcoizzz_bapiret2-type <> ' '.
+    MESSAGE ID ls_zzzcoizzz_bapiret2-id
+            TYPE ls_zzzcoizzz_bapiret2-type
+            NUMBER ls_zzzcoizzz_bapiret2-number
+            WITH ls_zzzcoizzz_bapiret2-message_v1
+            ls_zzzcoizzz_bapiret2-message_v2
+            ls_zzzcoizzz_bapiret2-message_v3
+            ls_zzzcoizzz_bapiret2-message_v4.
+
+
+  ENDIF.
